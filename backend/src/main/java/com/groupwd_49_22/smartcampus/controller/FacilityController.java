@@ -2,12 +2,14 @@ package com.groupwd_49_22.smartcampus.controller;
 
 import com.groupwd_49_22.smartcampus.model.Facility;
 import com.groupwd_49_22.smartcampus.service.FacilityService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/facilities")
+@CrossOrigin(origins = "*")
 public class FacilityController {
 
     private final FacilityService facilityService;
@@ -22,7 +24,7 @@ public class FacilityController {
     }
 
     @PostMapping
-    public String addFacility(@RequestBody Facility facility) {
+    public Facility addFacility(@Valid @RequestBody Facility facility) {
         return facilityService.addFacility(facility);
     }
 

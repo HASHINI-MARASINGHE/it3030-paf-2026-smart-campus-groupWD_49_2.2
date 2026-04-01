@@ -1,9 +1,19 @@
 package com.groupwd_49_22.smartcampus.model;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+
+@Entity
+@Table(name = "facility")
 public class Facility {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @NotBlank(message = "Facility name is required")
     private String name;
+
     private String location;
     private String type;
     private boolean available;

@@ -1,68 +1,59 @@
 package com.groupwd_49_22.smartcampus.service;
 
 import com.groupwd_49_22.smartcampus.model.Facility;
+import com.groupwd_49_22.smartcampus.repository.FacilityRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class FacilityService {
 
-    private final List<Facility> facilities = new ArrayList<>();
+    private final FacilityRepository facilityRepository;
 
-    public List<Facility> getAllFacilities() {
-        return facilities;
+    public FacilityService(FacilityRepository facilityRepository) {
+        this.facilityRepository = facilityRepository;
     }
 
-    public String addFacility(Facility facility) {
-        facilities.add(facility);
-        return "Facility added successfully!";
+    public List<Facility> getAllFacilities() {
+        return facilityRepository.findAll();
+    }
+
+    public Facility addFacility(Facility facility) {
+        return facilityRepository.save(facility);
     }
 
     public String updateFacility(Long id, Facility updatedFacility) {
-        for (Facility facility : facilities) {
-            if (facility.getId().equals(id)) {
-                facility.setName(updatedFacility.getName());
-                facility.setLocation(updatedFacility.getLocation());
-                facility.setType(updatedFacility.getType());
-                facility.setAvailable(updatedFacility.isAvailable());
-                return "Facility updated!";
-            }
+        Optional<Facility> optionalFacility = facilityRepository.findById(id);
+
+        if (optionalFacility.isPresent()) {
+            Facility facility = optionalFacility.get();
+            facility.setName(updatedFacility.getName());
+            facility.setLocation(updatedFacility.getLocation());
+            facility.setType(updatedFacility.getType());
+            facility.setAvailable(updatedFacility.isAvailable());
+
+            facilityRepository.save(facility);
+            return "Facility updated!";
         }
+
         return "Facility not found!";
     }
 
     public String deleteFacility(Long id) {
-        boolean removed = facilities.removeIf(facility -> facility.getId().equals(id));
-        if (removed) {
+        if (facilityRepository.existsById(id)) {
+            facilityRepository.deleteById(id);
             return "Facility deleted!";
         }
         return "Facility not found!";
     }
 
     public List<Facility> searchByName(String name) {
-        List<Facility> result = new ArrayList<>();
-
-        for (Facility facility : facilities) {
-            if (facility.getName() != null &&
-                facility.getName().toLowerCase().contains(name.toLowerCase())) {
-                result.add(facility);
-            }
-        }
-
-        return result;
+        return facilityRepository.findByNameContainingIgnoreCase(name);
     }
 
     public List<Facility> filterByAvailability(boolean available) {
-        List<Facility> result = new ArrayList<>();
-
-        for (Facility facility : facilities) {
-            if (facility.isAvailable() == available) {
-                result.add(facility);
-            }
-        }
-
-        return result;
+        return facilityRepository.findByAvailable(available);
     }
 }
