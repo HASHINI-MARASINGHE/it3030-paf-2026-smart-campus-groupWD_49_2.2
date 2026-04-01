@@ -23,6 +23,41 @@ public class FacilityController {
         return facilityService.getAllFacilities();
     }
 
+    @GetMapping("/search")
+    public List<Facility> searchFacilities(@RequestParam String name) {
+        return facilityService.searchByName(name);
+    }
+
+    @GetMapping("/filter")
+    public List<Facility> filterFacilities(@RequestParam boolean available) {
+        return facilityService.filterByAvailability(available);
+    }
+
+    @GetMapping("/filter/type")
+    public List<Facility> filterFacilitiesByType(@RequestParam String type) {
+        return facilityService.filterByType(type);
+    }
+
+    @GetMapping("/filter/location")
+    public List<Facility> filterFacilitiesByLocation(@RequestParam String location) {
+        return facilityService.filterByLocation(location);
+    }
+
+    @GetMapping("/filter/capacity")
+    public List<Facility> filterFacilitiesByCapacity(@RequestParam int capacity) {
+        return facilityService.filterByMinimumCapacity(capacity);
+    }
+
+    @GetMapping("/filter/status")
+    public List<Facility> filterFacilitiesByStatus(@RequestParam String status) {
+        return facilityService.filterByStatus(status);
+    }
+
+    @GetMapping("/{id}")
+    public Facility getFacilityById(@PathVariable Long id) {
+        return facilityService.getFacilityById(id);
+    }
+
     @PostMapping
     public Facility addFacility(@Valid @RequestBody Facility facility) {
         return facilityService.addFacility(facility);
@@ -36,15 +71,5 @@ public class FacilityController {
     @DeleteMapping("/{id}")
     public String deleteFacility(@PathVariable Long id) {
         return facilityService.deleteFacility(id);
-    }
-
-    @GetMapping("/search")
-    public List<Facility> searchFacilities(@RequestParam String name) {
-        return facilityService.searchByName(name);
-    }
-
-    @GetMapping("/filter")
-    public List<Facility> filterFacilities(@RequestParam boolean available) {
-        return facilityService.filterByAvailability(available);
     }
 }

@@ -20,6 +20,11 @@ public class FacilityService {
         return facilityRepository.findAll();
     }
 
+    public Facility getFacilityById(Long id) {
+        return facilityRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Facility not found with id: " + id));
+    }
+
     public Facility addFacility(Facility facility) {
         return facilityRepository.save(facility);
     }
@@ -32,6 +37,8 @@ public class FacilityService {
             facility.setName(updatedFacility.getName());
             facility.setLocation(updatedFacility.getLocation());
             facility.setType(updatedFacility.getType());
+            facility.setCapacity(updatedFacility.getCapacity());
+            facility.setStatus(updatedFacility.getStatus());
             facility.setAvailable(updatedFacility.isAvailable());
 
             facilityRepository.save(facility);
@@ -55,5 +62,21 @@ public class FacilityService {
 
     public List<Facility> filterByAvailability(boolean available) {
         return facilityRepository.findByAvailable(available);
+    }
+
+    public List<Facility> filterByType(String type) {
+        return facilityRepository.findByTypeIgnoreCase(type);
+    }
+
+    public List<Facility> filterByLocation(String location) {
+        return facilityRepository.findByLocationContainingIgnoreCase(location);
+    }
+
+    public List<Facility> filterByMinimumCapacity(int capacity) {
+        return facilityRepository.findByCapacityGreaterThanEqual(capacity);
+    }
+
+    public List<Facility> filterByStatus(String status) {
+        return facilityRepository.findByStatusIgnoreCase(status);
     }
 }
