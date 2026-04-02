@@ -1,11 +1,11 @@
 package com.groupwd_49_22.smartcampus.service;
 
+import com.groupwd_49_22.smartcampus.exception.ResourceNotFoundException;
 import com.groupwd_49_22.smartcampus.model.Facility;
 import com.groupwd_49_22.smartcampus.repository.FacilityRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class FacilityService {
@@ -22,38 +22,32 @@ public class FacilityService {
 
     public Facility getFacilityById(Long id) {
         return facilityRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Facility not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Facility not found with id: " + id));
     }
 
     public Facility addFacility(Facility facility) {
         return facilityRepository.save(facility);
     }
 
-    public String updateFacility(Long id, Facility updatedFacility) {
-        Optional<Facility> optionalFacility = facilityRepository.findById(id);
+    public Facility updateFacility(Long id, Facility updatedFacility) {
+        Facility facility = facilityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Facility not found with id: " + id));
 
-        if (optionalFacility.isPresent()) {
-            Facility facility = optionalFacility.get();
-            facility.setName(updatedFacility.getName());
-            facility.setLocation(updatedFacility.getLocation());
-            facility.setType(updatedFacility.getType());
-            facility.setCapacity(updatedFacility.getCapacity());
-            facility.setStatus(updatedFacility.getStatus());
-            facility.setAvailable(updatedFacility.isAvailable());
+        facility.setName(updatedFacility.getName());
+        facility.setLocation(updatedFacility.getLocation());
+        facility.setType(updatedFacility.getType());
+        facility.setCapacity(updatedFacility.getCapacity());
+        facility.setStatus(updatedFacility.getStatus());
+        facility.setAvailable(updatedFacility.isAvailable());
 
-            facilityRepository.save(facility);
-            return "Facility updated!";
-        }
-
-        return "Facility not found!";
+        return facilityRepository.save(facility);
     }
 
-    public String deleteFacility(Long id) {
-        if (facilityRepository.existsById(id)) {
-            facilityRepository.deleteById(id);
-            return "Facility deleted!";
-        }
-        return "Facility not found!";
+    public void deleteFacility(Long id) {
+        Facility facility = facilityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Facility not found with id: " + id));
+
+        facilityRepository.delete(facility);
     }
 
     public List<Facility> searchByName(String name) {

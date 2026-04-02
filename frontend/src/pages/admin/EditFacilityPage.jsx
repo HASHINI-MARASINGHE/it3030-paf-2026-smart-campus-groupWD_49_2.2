@@ -14,6 +14,23 @@ function EditFacilityPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
 
+  const getErrorMessage = (error, fallbackMessage) => {
+    if (error.response?.data?.messages) {
+      const validationMessages = Object.values(error.response.data.messages);
+      return validationMessages.join(" | ");
+    }
+
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+
+    if (error.code === "ERR_NETWORK") {
+      return "Cannot connect to server. Please make sure backend is running.";
+    }
+
+    return fallbackMessage;
+  };
+
   useEffect(() => {
     const fetchFacility = async () => {
       try {
@@ -21,7 +38,7 @@ function EditFacilityPage() {
         setFacility(response.data);
       } catch (error) {
         console.error("Error loading facility:", error);
-        setMessage("Failed to load facility details");
+        setMessage(getErrorMessage(error, "Failed to load facility details"));
         setMessageType("error");
       } finally {
         setLoading(false);
@@ -42,7 +59,7 @@ function EditFacilityPage() {
       }, 1200);
     } catch (error) {
       console.error("Error updating facility:", error);
-      setMessage("Failed to update facility");
+      setMessage(getErrorMessage(error, "Failed to update facility"));
       setMessageType("error");
     }
   };

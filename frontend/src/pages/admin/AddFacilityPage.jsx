@@ -9,6 +9,23 @@ function AddFacilityPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
 
+  const getErrorMessage = (error) => {
+    if (error.response?.data?.messages) {
+      const validationMessages = Object.values(error.response.data.messages);
+      return validationMessages.join(" | ");
+    }
+
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+
+    if (error.code === "ERR_NETWORK") {
+      return "Cannot connect to server. Please make sure backend is running.";
+    }
+
+    return "Failed to add facility";
+  };
+
   const handleAddFacility = async (facilityData) => {
     try {
       await addFacility(facilityData);
@@ -20,7 +37,7 @@ function AddFacilityPage() {
       }, 1200);
     } catch (error) {
       console.error("Error adding facility:", error);
-      setMessage("Failed to add facility");
+      setMessage(getErrorMessage(error));
       setMessageType("error");
     }
   };

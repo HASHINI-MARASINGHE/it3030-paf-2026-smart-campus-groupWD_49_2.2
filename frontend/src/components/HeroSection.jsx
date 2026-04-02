@@ -1,14 +1,19 @@
+import campusImg from "../assets/images/SLIIT.jpg";
+
 function HeroSection({ title, text, compact = false }) {
   return (
     <section
       style={{
         ...styles.hero,
-        padding: compact ? "70px 50px" : "90px 50px",
+        padding: compact ? "80px 20px" : "120px 20px",
+        backgroundImage: `url(${campusImg})`,
       }}
     >
-      <div style={styles.heroContent}>
-        <h2 style={styles.heroTitle}>{title}</h2>
-        <p style={styles.heroText}>{text}</p>
+      <div style={styles.overlay}>
+        <div style={styles.heroContent}>
+          <h1 style={styles.heroTitle}>{title}</h1>
+          <p style={styles.heroText}>{text}</p>
+        </div>
       </div>
     </section>
   );
@@ -16,23 +21,40 @@ function HeroSection({ title, text, compact = false }) {
 
 const styles = {
   hero: {
-    background: "linear-gradient(135deg, #1f2f6b, #37424a)",
+    minHeight: "380px",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     color: "#fff",
     textAlign: "center",
   },
+
+  // ✅ FULL OVERLAY (not box anymore)
+  overlay: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "40px 20px",
+  },
+
   heroContent: {
-    maxWidth: "950px",
-    margin: "0 auto",
+    maxWidth: "900px",
   },
+
   heroTitle: {
-    fontSize: "44px",
-    marginBottom: "18px",
+    fontSize: "48px",
+    marginBottom: "16px",
+    fontWeight: "bold",
   },
+
   heroText: {
     fontSize: "18px",
-    lineHeight: "1.7",
-    maxWidth: "850px",
-    margin: "0 auto",
+    lineHeight: "1.6",
   },
 };
 

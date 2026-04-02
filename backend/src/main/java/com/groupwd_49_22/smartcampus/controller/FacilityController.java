@@ -3,6 +3,8 @@ package com.groupwd_49_22.smartcampus.controller;
 import com.groupwd_49_22.smartcampus.model.Facility;
 import com.groupwd_49_22.smartcampus.service.FacilityService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,57 +21,60 @@ public class FacilityController {
     }
 
     @GetMapping
-    public List<Facility> getAllFacilities() {
-        return facilityService.getAllFacilities();
+    public ResponseEntity<List<Facility>> getAllFacilities() {
+        return ResponseEntity.ok(facilityService.getAllFacilities());
     }
 
     @GetMapping("/search")
-    public List<Facility> searchFacilities(@RequestParam String name) {
-        return facilityService.searchByName(name);
+    public ResponseEntity<List<Facility>> searchFacilities(@RequestParam String name) {
+        return ResponseEntity.ok(facilityService.searchByName(name));
     }
 
     @GetMapping("/filter")
-    public List<Facility> filterFacilities(@RequestParam boolean available) {
-        return facilityService.filterByAvailability(available);
+    public ResponseEntity<List<Facility>> filterFacilities(@RequestParam boolean available) {
+        return ResponseEntity.ok(facilityService.filterByAvailability(available));
     }
 
     @GetMapping("/filter/type")
-    public List<Facility> filterFacilitiesByType(@RequestParam String type) {
-        return facilityService.filterByType(type);
+    public ResponseEntity<List<Facility>> filterFacilitiesByType(@RequestParam String type) {
+        return ResponseEntity.ok(facilityService.filterByType(type));
     }
 
     @GetMapping("/filter/location")
-    public List<Facility> filterFacilitiesByLocation(@RequestParam String location) {
-        return facilityService.filterByLocation(location);
+    public ResponseEntity<List<Facility>> filterFacilitiesByLocation(@RequestParam String location) {
+        return ResponseEntity.ok(facilityService.filterByLocation(location));
     }
 
     @GetMapping("/filter/capacity")
-    public List<Facility> filterFacilitiesByCapacity(@RequestParam int capacity) {
-        return facilityService.filterByMinimumCapacity(capacity);
+    public ResponseEntity<List<Facility>> filterFacilitiesByCapacity(@RequestParam int capacity) {
+        return ResponseEntity.ok(facilityService.filterByMinimumCapacity(capacity));
     }
 
     @GetMapping("/filter/status")
-    public List<Facility> filterFacilitiesByStatus(@RequestParam String status) {
-        return facilityService.filterByStatus(status);
+    public ResponseEntity<List<Facility>> filterFacilitiesByStatus(@RequestParam String status) {
+        return ResponseEntity.ok(facilityService.filterByStatus(status));
     }
 
     @GetMapping("/{id}")
-    public Facility getFacilityById(@PathVariable Long id) {
-        return facilityService.getFacilityById(id);
+    public ResponseEntity<Facility> getFacilityById(@PathVariable Long id) {
+        return ResponseEntity.ok(facilityService.getFacilityById(id));
     }
 
     @PostMapping
-    public Facility addFacility(@Valid @RequestBody Facility facility) {
-        return facilityService.addFacility(facility);
+    public ResponseEntity<Facility> addFacility(@Valid @RequestBody Facility facility) {
+        Facility savedFacility = facilityService.addFacility(facility);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedFacility);
     }
 
     @PutMapping("/{id}")
-    public String updateFacility(@PathVariable Long id, @RequestBody Facility facility) {
-        return facilityService.updateFacility(id, facility);
+    public ResponseEntity<Facility> updateFacility(@PathVariable Long id, @Valid @RequestBody Facility facility) {
+        Facility updatedFacility = facilityService.updateFacility(id, facility);
+        return ResponseEntity.ok(updatedFacility);
     }
 
     @DeleteMapping("/{id}")
-    public String deleteFacility(@PathVariable Long id) {
-        return facilityService.deleteFacility(id);
+    public ResponseEntity<Void> deleteFacility(@PathVariable Long id) {
+        facilityService.deleteFacility(id);
+        return ResponseEntity.noContent().build();
     }
 }

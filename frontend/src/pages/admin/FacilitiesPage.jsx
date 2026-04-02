@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Toast from "../../components/common/Toast";
 import {
   deleteFacility,
@@ -13,6 +13,8 @@ import {
 } from "../../api/facilityApi";
 
 function FacilitiesPage() {
+  const location = useLocation();
+
   const [facilities, setFacilities] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
@@ -53,8 +55,30 @@ function FacilitiesPage() {
   };
 
   useEffect(() => {
-    loadFacilities();
-  }, []);
+    const params = new URLSearchParams(location.search);
+    const searchQuery = params.get("search");
+
+    if (searchQuery && searchQuery.trim() !== "") {
+      setSearchText(searchQuery);
+
+      const runSearchFromQuery = async () => {
+        try {
+          setLoading(true);
+          const response = await searchFacilities(searchQuery);
+          setFacilities(response.data);
+        } catch (error) {
+          console.error("Error searching facilities from query:", error);
+          showMessage("Search failed", "error");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      runSearchFromQuery();
+    } else {
+      loadFacilities();
+    }
+  }, [location.search]);
 
   const handleSearch = async () => {
     try {
@@ -214,7 +238,9 @@ function FacilitiesPage() {
       <div style={styles.headerRow}>
         <div>
           <h2 style={styles.heading}>Facilities List</h2>
-          <p style={styles.subText}>Manage lecture halls, labs, rooms, and resources.</p>
+          <p style={styles.subText}>
+            Manage lecture halls, labs, rooms, and resources.
+          </p>
         </div>
 
         <Link to="/admin/facilities/add" style={styles.addButton}>
@@ -361,7 +387,10 @@ function FacilitiesPage() {
               </div>
 
               <div style={styles.actionRow}>
-                <Link to={`/admin/facilities/edit/${facility.id}`} style={styles.editButton}>
+                <Link
+                  to={`/admin/facilities/edit/${facility.id}`}
+                  style={styles.editButton}
+                >
                   Edit
                 </Link>
                 <button
@@ -388,7 +417,10 @@ function FacilitiesPage() {
               <button onClick={closeDeleteConfirm} style={styles.cancelButton}>
                 Cancel
               </button>
-              <button onClick={handleDeleteConfirmed} style={styles.confirmDeleteButton}>
+              <button
+                onClick={handleDeleteConfirmed}
+                style={styles.confirmDeleteButton}
+              >
                 Delete
               </button>
             </div>
@@ -421,6 +453,7 @@ const styles = {
     padding: "12px 18px",
     borderRadius: "8px",
     fontWeight: "bold",
+    textDecoration: "none",
   },
   filterBar: {
     display: "flex",
@@ -530,6 +563,7 @@ const styles = {
     padding: "12px 18px",
     borderRadius: "8px",
     fontWeight: "bold",
+    textDecoration: "none",
   },
   cardGrid: {
     display: "grid",
@@ -578,6 +612,7 @@ const styles = {
     padding: "10px 14px",
     borderRadius: "8px",
     fontWeight: "bold",
+    textDecoration: "none",
   },
   deleteButton: {
     backgroundColor: "#dc2626",
