@@ -3,9 +3,12 @@ import { NavLink, useLocation } from "react-router-dom";
 function AdminSidebar() {
   const location = useLocation();
 
-  const isFacilitiesActive = location.pathname === "/admin/facilities";
-  const isAddFacilityActive = location.pathname === "/admin/facilities/add";
-  const isEditFacilityActive = location.pathname.startsWith("/admin/facilities/edit/");
+  const isFacilitiesActive =
+    location.pathname === "/admin/facilities" ||
+    location.pathname === "/admin/facilities/add" ||
+    location.pathname.startsWith("/admin/facilities/edit/");
+
+  const isBookingsActive = location.pathname === "/admin/bookings";
 
   return (
     <aside style={styles.sidebar}>
@@ -28,7 +31,6 @@ function AdminSidebar() {
 
         <NavLink
           to="/admin/facilities"
-          end
           style={() => ({
             ...styles.link,
             ...(isFacilitiesActive ? styles.activeLink : {}),
@@ -39,23 +41,23 @@ function AdminSidebar() {
 
         <NavLink
           to="/admin/facilities/add"
-          style={() => ({
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isAddFacilityActive ? styles.activeLink : {}),
+            ...(isActive ? styles.activeLink : {}),
           })}
         >
           Add Facility
         </NavLink>
 
-        <div
-          style={{
+        <NavLink
+          to="/admin/bookings"
+          style={() => ({
             ...styles.link,
-            ...(isEditFacilityActive ? styles.activeLink : {}),
-            ...(isEditFacilityActive ? {} : styles.hiddenEditLink),
-          }}
+            ...(isBookingsActive ? styles.activeLink : {}),
+          })}
         >
-          Edit Facility
-        </div>
+          Bookings
+        </NavLink>
       </nav>
     </aside>
   );
@@ -93,9 +95,6 @@ const styles = {
   },
   activeLink: {
     backgroundColor: "#1f2f6b",
-  },
-  hiddenEditLink: {
-    display: "none",
   },
 };
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   getAllFacilities,
   searchFacilities,
@@ -161,19 +162,15 @@ function UserFacilitiesPage() {
   return (
     <div style={styles.page}>
       <Navbar />
+      <HeroSection />
 
-      <HeroSection
-        title="Browse Campus Facilities"
-        text="View available labs, lecture halls, meeting rooms, and equipment managed by the campus."
-        compact
-      />
-
-      <section style={styles.content}>
-        <div style={styles.filterSection}>
+      <main style={styles.content}>
+        <section style={styles.filterSection}>
           <div style={styles.filterHeader}>
             <h2 style={styles.filterTitle}>Facilities Catalogue</h2>
             <p style={styles.filterSubText}>
-              Search and filter facilities by type, location, capacity, status, and availability.
+              Search and filter facilities by type, location, capacity, status,
+              and availability.
             </p>
           </div>
 
@@ -185,6 +182,7 @@ function UserFacilitiesPage() {
               onChange={(e) => setSearchText(e.target.value)}
               style={styles.input}
             />
+
             <button onClick={handleSearch} style={styles.searchButton}>
               Search
             </button>
@@ -210,30 +208,39 @@ function UserFacilitiesPage() {
               <option value="Meeting Room">Meeting Room</option>
               <option value="Equipment">Equipment</option>
             </select>
+
             <button onClick={handleTypeFilter} style={styles.secondaryButton}>
               Type
             </button>
 
             <input
               type="text"
-              placeholder="Filter by location"
+              placeholder="Location"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
               style={styles.inputSmall}
             />
-            <button onClick={handleLocationFilter} style={styles.secondaryButton}>
+
+            <button
+              onClick={handleLocationFilter}
+              style={styles.secondaryButton}
+            >
               Location
             </button>
 
             <input
               type="number"
-              placeholder="Min capacity"
+              placeholder="Capacity"
               value={capacityFilter}
               onChange={(e) => setCapacityFilter(e.target.value)}
               style={styles.inputSmall}
               min="1"
             />
-            <button onClick={handleCapacityFilter} style={styles.secondaryButton}>
+
+            <button
+              onClick={handleCapacityFilter}
+              style={styles.secondaryButton}
+            >
               Capacity
             </button>
 
@@ -246,6 +253,7 @@ function UserFacilitiesPage() {
               <option value="ACTIVE">ACTIVE</option>
               <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
             </select>
+
             <button onClick={handleStatusFilter} style={styles.secondaryButton}>
               Status
             </button>
@@ -254,67 +262,99 @@ function UserFacilitiesPage() {
               Reset
             </button>
           </div>
-        </div>
+        </section>
 
         {loading ? (
           <div style={styles.loaderWrapper}>
-            <div style={styles.spinner}></div>
+            <div style={styles.spinner} />
             <p style={styles.loadingText}>Loading facilities...</p>
           </div>
         ) : facilities.length === 0 ? (
           <div style={styles.emptyBox}>
             <div style={styles.emptyIcon}>🏫</div>
             <h3 style={styles.emptyTitle}>No facilities available</h3>
-            <p style={styles.emptyText}>No matching facilities were found at the moment.</p>
+            <p style={styles.emptyText}>
+              No matching facilities were found at the moment.
+            </p>
           </div>
         ) : (
           <div style={styles.cardGrid}>
-            {facilities.map((facility) => (
-              <div
-                key={facility.id}
-                style={styles.card}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-4px)";
-                  e.currentTarget.style.boxShadow = "0 8px 22px rgba(0,0,0,0.12)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 3px 12px rgba(0,0,0,0.08)";
-                }}
-              >
-                <div style={styles.cardTop}>
-                  <h3 style={styles.cardTitle}>{facility.name}</h3>
-                  <span
-                    style={{
-                      ...styles.badge,
-                      backgroundColor: facility.available ? "#d1fae5" : "#fee2e2",
-                      color: facility.available ? "#065f46" : "#991b1b",
-                    }}
-                  >
-                    {facility.available ? "Available" : "Unavailable"}
-                  </span>
-                </div>
+            {facilities.map((facility) => {
+              const canBook =
+                facility.available === true &&
+                String(facility.status || "").toUpperCase() === "ACTIVE";
 
-                <div style={styles.infoRow}>
-                  <strong>Location:</strong> {facility.location || "N/A"}
+              return (
+                <div
+                  key={facility.id}
+                  style={styles.card}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-4px)";
+                    e.currentTarget.style.boxShadow =
+                      "0 8px 22px rgba(0,0,0,0.12)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow =
+                      "0 3px 12px rgba(0,0,0,0.08)";
+                  }}
+                >
+                  <div style={styles.cardTop}>
+                    <h3 style={styles.cardTitle}>{facility.name}</h3>
+                    <span
+                      style={{
+                        ...styles.badge,
+                        backgroundColor: facility.available
+                          ? "#dcfce7"
+                          : "#fee2e2",
+                        color: facility.available ? "#166534" : "#991b1b",
+                      }}
+                    >
+                      {facility.available ? "Available" : "Unavailable"}
+                    </span>
+                  </div>
+
+                  <div style={styles.infoRow}>
+                    <strong>Location:</strong> {facility.location || "N/A"}
+                  </div>
+
+                  <div style={styles.infoRow}>
+                    <strong>Type:</strong> {facility.type || "N/A"}
+                  </div>
+
+                  <div style={styles.infoRow}>
+                    <strong>Capacity:</strong> {facility.capacity}
+                  </div>
+
+                  <div style={styles.infoRow}>
+                    <strong>Status:</strong> {facility.status || "N/A"}
+                  </div>
+
+                  <div style={styles.infoRow}>
+                    <strong>Facility ID:</strong> {facility.id}
+                  </div>
+
+                  <div style={styles.actionRow}>
+                    <Link
+                      to={`/bookings?facilityId=${facility.id}`}
+                      style={
+                        canBook ? styles.bookButton : styles.bookButtonDisabled
+                      }
+                      onClick={(e) => {
+                        if (!canBook) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      {canBook ? "Book Now" : "Not Bookable"}
+                    </Link>
+                  </div>
                 </div>
-                <div style={styles.infoRow}>
-                  <strong>Type:</strong> {facility.type || "N/A"}
-                </div>
-                <div style={styles.infoRow}>
-                  <strong>Capacity:</strong> {facility.capacity}
-                </div>
-                <div style={styles.infoRow}>
-                  <strong>Status:</strong> {facility.status || "N/A"}
-                </div>
-                <div style={styles.infoRow}>
-                  <strong>Facility ID:</strong> {facility.id}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </section>
+      </main>
 
       <Footer />
     </div>
@@ -377,6 +417,7 @@ const styles = {
     minWidth: "170px",
     outline: "none",
     fontSize: "15px",
+    backgroundColor: "#fff",
   },
   searchButton: {
     backgroundColor: "#1f2f6b",
@@ -415,14 +456,14 @@ const styles = {
     borderRadius: "14px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
   },
-spinner: {
-  width: "42px",
-  height: "42px",
-  border: "5px solid #e5e7eb",
-  borderTop: "5px solid #1f2f6b",
-  borderRadius: "50%",
-  animation: "spin 1s linear infinite",
-},
+  spinner: {
+    width: "42px",
+    height: "42px",
+    border: "5px solid #e5e7eb",
+    borderTop: "5px solid #1f2f6b",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
+  },
   loadingText: {
     marginTop: "14px",
     color: "#37424a",
@@ -470,6 +511,7 @@ spinner: {
   cardTitle: {
     color: "#1f2f6b",
     fontSize: "24px",
+    margin: 0,
   },
   badge: {
     padding: "6px 12px",
@@ -481,8 +523,31 @@ spinner: {
     marginBottom: "10px",
     color: "#333",
     fontSize: "16px",
+    lineHeight: "1.6",
   },
-
+  actionRow: {
+    marginTop: "18px",
+  },
+  bookButton: {
+    display: "inline-block",
+    backgroundColor: "#1f2f6b",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    textDecoration: "none",
+  },
+  bookButtonDisabled: {
+    display: "inline-block",
+    backgroundColor: "#cbd5e1",
+    color: "#475569",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    textDecoration: "none",
+    cursor: "not-allowed",
+    pointerEvents: "auto",
+  },
 };
 
 export default UserFacilitiesPage;
