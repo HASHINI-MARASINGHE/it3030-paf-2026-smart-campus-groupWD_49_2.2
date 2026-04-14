@@ -9,12 +9,14 @@ import FacilitiesPage from "./pages/admin/FacilitiesPage";
 import AddFacilityPage from "./pages/admin/AddFacilityPage";
 import EditFacilityPage from "./pages/admin/EditFacilityPage";
 import AdminBookingsPage from "./pages/admin/BookingsPage";
+import AboutPage from "./pages/AboutPage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/facilities" element={<UserFacilitiesPage />} />
         <Route path="/bookings" element={<BookingsPage />} />

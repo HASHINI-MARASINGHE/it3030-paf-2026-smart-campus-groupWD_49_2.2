@@ -1,16 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getAllFacilities,
-  searchFacilities,
-  filterFacilities,
-  filterFacilitiesByType,
-  filterFacilitiesByLocation,
-  filterFacilitiesByCapacity,
-  filterFacilitiesByStatus,
-} from "../api/facilityApi";
+import { getAllFacilities, searchFacilities } from "../api/facilityApi";
 import Navbar from "../components/Navbar";
-import HeroSection from "../components/HeroSection";
 import Footer from "../components/Footer";
 
 function UserFacilitiesPage() {
@@ -43,107 +34,53 @@ function UserFacilitiesPage() {
     try {
       setLoading(true);
 
-      if (searchText.trim() === "") {
-        await loadFacilities();
-        return;
+      let result = await getAllFacilities();
+      let filteredData = result.data;
+
+      if (searchText.trim()) {
+        const response = await searchFacilities(searchText.trim());
+        filteredData = response.data;
       }
 
-      const response = await searchFacilities(searchText);
-      setFacilities(response.data);
+      if (availabilityFilter !== "all") {
+        filteredData = filteredData.filter(
+          (facility) => facility.available === (availabilityFilter === "true")
+        );
+      }
+
+      if (typeFilter.trim()) {
+        filteredData = filteredData.filter(
+          (facility) =>
+            String(facility.type || "").toLowerCase() ===
+            typeFilter.trim().toLowerCase()
+        );
+      }
+
+      if (locationFilter.trim()) {
+        filteredData = filteredData.filter((facility) =>
+          String(facility.location || "")
+            .toLowerCase()
+            .includes(locationFilter.trim().toLowerCase())
+        );
+      }
+
+      if (capacityFilter) {
+        filteredData = filteredData.filter(
+          (facility) => Number(facility.capacity) >= Number(capacityFilter)
+        );
+      }
+
+      if (statusFilter.trim()) {
+        filteredData = filteredData.filter(
+          (facility) =>
+            String(facility.status || "").toUpperCase() ===
+            statusFilter.trim().toUpperCase()
+        );
+      }
+
+      setFacilities(filteredData);
     } catch (error) {
       console.error("Error searching facilities:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAvailabilityChange = async (value) => {
-    setAvailabilityFilter(value);
-
-    try {
-      setLoading(true);
-
-      if (value === "all") {
-        await loadFacilities();
-        return;
-      }
-
-      const response = await filterFacilities(value === "true");
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering facilities:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTypeFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!typeFilter.trim()) {
-        await loadFacilities();
-        return;
-      }
-
-      const response = await filterFacilitiesByType(typeFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by type:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLocationFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!locationFilter.trim()) {
-        await loadFacilities();
-        return;
-      }
-
-      const response = await filterFacilitiesByLocation(locationFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by location:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCapacityFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!capacityFilter) {
-        await loadFacilities();
-        return;
-      }
-
-      const response = await filterFacilitiesByCapacity(capacityFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by capacity:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStatusFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!statusFilter.trim()) {
-        await loadFacilities();
-        return;
-      }
-
-      const response = await filterFacilitiesByStatus(statusFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by status:", error);
     } finally {
       setLoading(false);
     }
@@ -162,104 +99,114 @@ function UserFacilitiesPage() {
   return (
     <div style={styles.page}>
       <Navbar />
-      <HeroSection />
+
+      <section style={styles.pageBanner}>
+        <div style={styles.pageBannerOverlay}>
+          <div style={styles.pageBannerContent}>
+            <p style={styles.bannerMiniTitle}>Smart Campus Resources</p>
+            <h1 style={styles.pageTitle}>Facilities Catalogue</h1>
+            <p style={styles.pageSubtitle}>
+              Browse, search, and filter available university facilities in one
+              modern workspace.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <main style={styles.content}>
         <section style={styles.filterSection}>
           <div style={styles.filterHeader}>
-            <h2 style={styles.filterTitle}>Facilities Catalogue</h2>
+            <p style={styles.sectionLabel}>Facility Search</p>
+            <h2 style={styles.filterTitle}>Find the Right Space Faster</h2>
             <p style={styles.filterSubText}>
-              Search and filter facilities by type, location, capacity, status,
-              and availability.
+              Search and filter facilities by name, location, type, capacity,
+              status, and availability.
             </p>
           </div>
 
-          <div style={styles.filterBar}>
-            <input
-              type="text"
-              placeholder="Search by facility name"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              style={styles.input}
-            />
+          <div style={styles.filterGrid}>
+            <div style={styles.fieldBlock}>
+              <label style={styles.label}>Facility Name</label>
+              <input
+                type="text"
+                placeholder="Search by facility name"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={styles.input}
+              />
+            </div>
 
+            <div style={styles.fieldBlock}>
+              <label style={styles.label}>Availability</label>
+              <select
+                value={availabilityFilter}
+                onChange={(e) => setAvailabilityFilter(e.target.value)}
+                style={styles.select}
+              >
+                <option value="all">All Availability</option>
+                <option value="true">Available Only</option>
+                <option value="false">Unavailable Only</option>
+              </select>
+            </div>
+
+            <div style={styles.fieldBlock}>
+              <label style={styles.label}>Type</label>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                style={styles.select}
+              >
+                <option value="">All Types</option>
+                <option value="Lecture Hall">Lecture Hall</option>
+                <option value="Lab">Lab</option>
+                <option value="Meeting Room">Meeting Room</option>
+                <option value="Equipment">Equipment</option>
+              </select>
+            </div>
+
+            <div style={styles.fieldBlock}>
+              <label style={styles.label}>Location</label>
+              <input
+                type="text"
+                placeholder="Enter location"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                style={styles.input}
+              />
+            </div>
+
+            <div style={styles.fieldBlock}>
+              <label style={styles.label}>Capacity</label>
+              <input
+                type="number"
+                placeholder="Enter capacity"
+                value={capacityFilter}
+                onChange={(e) => setCapacityFilter(e.target.value)}
+                style={styles.input}
+                min="1"
+              />
+            </div>
+
+            <div style={styles.fieldBlock}>
+              <label style={styles.label}>Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={styles.select}
+              >
+                <option value="">All Status</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={styles.filterActions}>
             <button onClick={handleSearch} style={styles.searchButton}>
               Search
             </button>
-
-            <select
-              value={availabilityFilter}
-              onChange={(e) => handleAvailabilityChange(e.target.value)}
-              style={styles.select}
-            >
-              <option value="all">All Availability</option>
-              <option value="true">Available Only</option>
-              <option value="false">Unavailable Only</option>
-            </select>
-
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              style={styles.select}
-            >
-              <option value="">All Types</option>
-              <option value="Lecture Hall">Lecture Hall</option>
-              <option value="Lab">Lab</option>
-              <option value="Meeting Room">Meeting Room</option>
-              <option value="Equipment">Equipment</option>
-            </select>
-
-            <button onClick={handleTypeFilter} style={styles.secondaryButton}>
-              Type
-            </button>
-
-            <input
-              type="text"
-              placeholder="Location"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              style={styles.inputSmall}
-            />
-
-            <button
-              onClick={handleLocationFilter}
-              style={styles.secondaryButton}
-            >
-              Location
-            </button>
-
-            <input
-              type="number"
-              placeholder="Capacity"
-              value={capacityFilter}
-              onChange={(e) => setCapacityFilter(e.target.value)}
-              style={styles.inputSmall}
-              min="1"
-            />
-
-            <button
-              onClick={handleCapacityFilter}
-              style={styles.secondaryButton}
-            >
-              Capacity
-            </button>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={styles.select}
-            >
-              <option value="">All Status</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
-            </select>
-
-            <button onClick={handleStatusFilter} style={styles.secondaryButton}>
-              Status
-            </button>
-
             <button onClick={handleReset} style={styles.resetButton}>
-              Reset
+              Reset All
             </button>
           </div>
         </section>
@@ -289,16 +236,18 @@ function UserFacilitiesPage() {
                   key={facility.id}
                   style={styles.card}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-4px)";
+                    e.currentTarget.style.transform = "translateY(-6px)";
                     e.currentTarget.style.boxShadow =
-                      "0 8px 22px rgba(0,0,0,0.12)";
+                      "0 20px 35px rgba(15, 23, 42, 0.12)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = "translateY(0)";
                     e.currentTarget.style.boxShadow =
-                      "0 3px 12px rgba(0,0,0,0.08)";
+                      "0 10px 25px rgba(15, 23, 42, 0.08)";
                   }}
                 >
+                  <div style={styles.cardAccent}></div>
+
                   <div style={styles.cardTop}>
                     <h3 style={styles.cardTitle}>{facility.name}</h3>
                     <span
@@ -314,24 +263,33 @@ function UserFacilitiesPage() {
                     </span>
                   </div>
 
-                  <div style={styles.infoRow}>
-                    <strong>Location:</strong> {facility.location || "N/A"}
-                  </div>
+                  <div style={styles.infoList}>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Location</span>
+                      <span style={styles.infoValue}>
+                        {facility.location || "N/A"}
+                      </span>
+                    </div>
 
-                  <div style={styles.infoRow}>
-                    <strong>Type:</strong> {facility.type || "N/A"}
-                  </div>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Type</span>
+                      <span style={styles.infoValue}>{facility.type || "N/A"}</span>
+                    </div>
 
-                  <div style={styles.infoRow}>
-                    <strong>Capacity:</strong> {facility.capacity}
-                  </div>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Capacity</span>
+                      <span style={styles.infoValue}>{facility.capacity}</span>
+                    </div>
 
-                  <div style={styles.infoRow}>
-                    <strong>Status:</strong> {facility.status || "N/A"}
-                  </div>
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Status</span>
+                      <span style={styles.infoValue}>{facility.status || "N/A"}</span>
+                    </div>
 
-                  <div style={styles.infoRow}>
-                    <strong>Facility ID:</strong> {facility.id}
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Facility ID</span>
+                      <span style={styles.infoValue}>{facility.id}</span>
+                    </div>
                   </div>
 
                   <div style={styles.actionRow}>
@@ -364,101 +322,173 @@ function UserFacilitiesPage() {
 const styles = {
   page: {
     minHeight: "100vh",
-    backgroundColor: "#f5f6f8",
+    background:
+      "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%)",
   },
+
+  pageBanner: {
+    height: "190px",
+    backgroundImage:
+      "linear-gradient(135deg, rgba(15, 23, 42, 0.68), rgba(30, 58, 138, 0.52)), url('/src/assets/SLIIT.jpg')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  },
+  pageBannerOverlay: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+  },
+  pageBannerContent: {
+    maxWidth: "1400px",
+    padding: "0 50px",
+  },
+  bannerMiniTitle: {
+    color: "#f4b400",
+    fontSize: "13px",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: "1.4px",
+    marginBottom: "10px",
+  },
+  pageTitle: {
+    color: "#ffffff",
+    fontSize: "42px",
+    fontWeight: "800",
+    margin: "0 0 8px 0",
+    letterSpacing: "-0.8px",
+    lineHeight: 1.1,
+  },
+  pageSubtitle: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: "16px",
+    maxWidth: "700px",
+    lineHeight: "1.6",
+    margin: 0,
+  },
+
   content: {
-    padding: "35px 50px",
+    padding: "24px 50px 30px",
+    marginTop: "0",
+    position: "relative",
+    zIndex: 2,
   },
+
   filterSection: {
-    backgroundColor: "#fff",
-    borderRadius: "16px",
-    padding: "24px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    backdropFilter: "blur(10px)",
+    borderRadius: "24px",
+    padding: "30px",
+    boxShadow: "0 20px 45px rgba(15, 23, 42, 0.12)",
     marginBottom: "28px",
+    border: "1px solid rgba(255,255,255,0.6)",
   },
   filterHeader: {
-    marginBottom: "18px",
+    marginBottom: "22px",
+  },
+  sectionLabel: {
+    margin: "0 0 8px 0",
+    color: "#f59e0b",
+    fontWeight: "800",
+    fontSize: "13px",
+    letterSpacing: "1px",
+    textTransform: "uppercase",
   },
   filterTitle: {
-    color: "#1f2f6b",
-    fontSize: "28px",
-    marginBottom: "8px",
+    color: "#1e3a8a",
+    fontSize: "32px",
+    margin: "0 0 10px 0",
+    fontWeight: "800",
+    letterSpacing: "-0.5px",
   },
   filterSubText: {
-    color: "#555",
-    lineHeight: "1.6",
+    color: "#64748b",
+    lineHeight: "1.7",
+    fontSize: "16px",
+    margin: 0,
+    maxWidth: "850px",
   },
-  filterBar: {
+
+  filterGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "18px",
+    marginBottom: "22px",
+  },
+  fieldBlock: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  label: {
+    fontSize: "14px",
+    color: "#334155",
+    fontWeight: "700",
+  },
+
+  input: {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: "14px",
+    border: "1px solid #dbe3ee",
+    outline: "none",
+    fontSize: "15px",
+    backgroundColor: "#ffffff",
+    color: "#0f172a",
+    boxSizing: "border-box",
+  },
+  select: {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: "14px",
+    border: "1px solid #dbe3ee",
+    outline: "none",
+    fontSize: "15px",
+    backgroundColor: "#ffffff",
+    color: "#0f172a",
+    boxSizing: "border-box",
+  },
+
+  filterActions: {
     display: "flex",
     gap: "12px",
     flexWrap: "wrap",
   },
-  input: {
-    flex: "1",
-    minWidth: "220px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    outline: "none",
-    fontSize: "15px",
-  },
-  inputSmall: {
-    minWidth: "160px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    outline: "none",
-    fontSize: "15px",
-  },
-  select: {
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    minWidth: "170px",
-    outline: "none",
-    fontSize: "15px",
-    backgroundColor: "#fff",
-  },
   searchButton: {
-    backgroundColor: "#1f2f6b",
+    background: "linear-gradient(135deg, #1e3a8a, #1f2f6b)",
     color: "#fff",
     border: "none",
-    padding: "12px 18px",
-    borderRadius: "8px",
+    padding: "14px 24px",
+    borderRadius: "14px",
     cursor: "pointer",
-    fontWeight: "bold",
-  },
-  secondaryButton: {
-    backgroundColor: "#475569",
-    color: "#fff",
-    border: "none",
-    padding: "12px 14px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "800",
+    fontSize: "15px",
+    boxShadow: "0 10px 22px rgba(31, 47, 107, 0.20)",
   },
   resetButton: {
-    backgroundColor: "#37424a",
-    color: "#fff",
+    backgroundColor: "#e2e8f0",
+    color: "#334155",
     border: "none",
-    padding: "12px 18px",
-    borderRadius: "8px",
+    padding: "14px 24px",
+    borderRadius: "14px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "800",
+    fontSize: "15px",
   },
+
   loaderWrapper: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
-    padding: "50px 20px",
-    borderRadius: "14px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    padding: "60px 20px",
+    borderRadius: "20px",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
   },
   spinner: {
-    width: "42px",
-    height: "42px",
+    width: "44px",
+    height: "44px",
     border: "5px solid #e5e7eb",
     borderTop: "5px solid #1f2f6b",
     borderRadius: "50%",
@@ -467,86 +497,131 @@ const styles = {
   loadingText: {
     marginTop: "14px",
     color: "#37424a",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
+
   emptyBox: {
     backgroundColor: "#fff",
-    padding: "40px 30px",
-    borderRadius: "14px",
+    padding: "50px 30px",
+    borderRadius: "20px",
     textAlign: "center",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
   },
   emptyIcon: {
-    fontSize: "42px",
+    fontSize: "44px",
     marginBottom: "10px",
   },
   emptyTitle: {
-    color: "#1f2f6b",
+    color: "#1e3a8a",
     marginBottom: "8px",
+    fontSize: "26px",
   },
   emptyText: {
-    color: "#555",
+    color: "#64748b",
+    fontSize: "16px",
   },
+
   cardGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: "20px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    gap: "24px",
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: "14px",
-    padding: "20px",
-    boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-    transition: "all 0.2s ease",
-    borderLeft: "5px solid #f4b400",
+    position: "relative",
+    backgroundColor: "#ffffff",
+    borderRadius: "24px",
+    padding: "26px",
+    boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)",
+    transition: "all 0.25s ease",
+    overflow: "hidden",
+    border: "1px solid #eef2f7",
+  },
+  cardAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "5px",
+    background: "linear-gradient(90deg, #f4b400, #f59e0b)",
   },
   cardTop: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "16px",
-    flexWrap: "wrap",
+    alignItems: "flex-start",
+    gap: "12px",
+    marginBottom: "20px",
   },
   cardTitle: {
-    color: "#1f2f6b",
-    fontSize: "24px",
+    color: "#1e3a8a",
+    fontSize: "26px",
+    lineHeight: "1.15",
     margin: 0,
+    fontWeight: "800",
+    letterSpacing: "-0.5px",
   },
   badge: {
-    padding: "6px 12px",
+    padding: "7px 12px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: "bold",
+    fontWeight: "800",
+    whiteSpace: "nowrap",
+  },
+
+  infoList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
   },
   infoRow: {
-    marginBottom: "10px",
-    color: "#333",
-    fontSize: "16px",
-    lineHeight: "1.6",
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    paddingBottom: "10px",
+    borderBottom: "1px solid #f1f5f9",
   },
+  infoLabel: {
+    color: "#64748b",
+    fontSize: "14px",
+    fontWeight: "700",
+    minWidth: "90px",
+  },
+  infoValue: {
+    color: "#0f172a",
+    fontSize: "15px",
+    fontWeight: "700",
+    textAlign: "right",
+    wordBreak: "break-word",
+  },
+
   actionRow: {
-    marginTop: "18px",
+    marginTop: "22px",
   },
   bookButton: {
-    display: "inline-block",
-    backgroundColor: "#1f2f6b",
+    display: "block",
+    width: "100%",
+    background: "linear-gradient(135deg, #1e3a8a, #1f2f6b)",
     color: "#fff",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    fontWeight: "bold",
+    padding: "14px 16px",
+    borderRadius: "14px",
+    fontWeight: "800",
     textDecoration: "none",
+    textAlign: "center",
+    boxSizing: "border-box",
+    boxShadow: "0 10px 20px rgba(31, 47, 107, 0.18)",
   },
   bookButtonDisabled: {
-    display: "inline-block",
-    backgroundColor: "#cbd5e1",
-    color: "#475569",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    fontWeight: "bold",
+    display: "block",
+    width: "100%",
+    backgroundColor: "#e2e8f0",
+    color: "#64748b",
+    padding: "14px 16px",
+    borderRadius: "14px",
+    fontWeight: "800",
     textDecoration: "none",
+    textAlign: "center",
     cursor: "not-allowed",
     pointerEvents: "auto",
+    boxSizing: "border-box",
   },
 };
 
