@@ -1,35 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Toast from "../../components/common/Toast";
 import {
   deleteFacility,
   getAllFacilities,
   searchFacilities,
-  filterFacilities,
-  filterFacilitiesByType,
-  filterFacilitiesByLocation,
-  filterFacilitiesByCapacity,
-  filterFacilitiesByStatus,
 } from "../../api/facilityApi";
 
 function FacilitiesPage() {
   const location = useLocation();
 
+  const [allFacilities, setAllFacilities] = useState([]);
   const [facilities, setFacilities] = useState([]);
+
   const [searchText, setSearchText] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [capacityFilter, setCapacityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [loading, setLoading] = useState(true);
 
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedFacilityId, setSelectedFacilityId] = useState(null);
   const [selectedFacilityName, setSelectedFacilityName] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const showMessage = (text, type = "success") => {
     setMessage(text);
@@ -45,7 +45,9 @@ function FacilitiesPage() {
     try {
       setLoading(true);
       const response = await getAllFacilities();
+      setAllFacilities(response.data);
       setFacilities(response.data);
+      setCurrentPage(1);
     } catch (error) {
       console.error("Error loading facilities:", error);
       showMessage("Failed to load facilities", "error");
@@ -58,139 +60,88 @@ function FacilitiesPage() {
     const params = new URLSearchParams(location.search);
     const searchQuery = params.get("search");
 
-    if (searchQuery && searchQuery.trim() !== "") {
-      setSearchText(searchQuery);
+    const initLoad = async () => {
+      try {
+        setLoading(true);
+        const response = await getAllFacilities();
+        const loadedData = response.data;
 
-      const runSearchFromQuery = async () => {
-        try {
-          setLoading(true);
-          const response = await searchFacilities(searchQuery);
-          setFacilities(response.data);
-        } catch (error) {
-          console.error("Error searching facilities from query:", error);
-          showMessage("Search failed", "error");
-        } finally {
-          setLoading(false);
+        setAllFacilities(loadedData);
+
+        if (searchQuery && searchQuery.trim() !== "") {
+          setSearchText(searchQuery);
+
+          const searchResponse = await searchFacilities(searchQuery.trim());
+          setFacilities(searchResponse.data);
+        } else {
+          setFacilities(loadedData);
         }
-      };
 
-      runSearchFromQuery();
-    } else {
-      loadFacilities();
-    }
+        setCurrentPage(1);
+      } catch (error) {
+        console.error("Error loading facilities:", error);
+        showMessage("Failed to load facilities", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initLoad();
   }, [location.search]);
 
-  const handleSearch = async () => {
+  const handleApplyFilters = async () => {
     try {
       setLoading(true);
 
-      if (searchText.trim() === "") {
-        await loadFacilities();
-        return;
+      let workingData = [...allFacilities];
+
+      if (searchText.trim()) {
+        const response = await searchFacilities(searchText.trim());
+        workingData = response.data;
       }
 
-      const response = await searchFacilities(searchText);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error searching facilities:", error);
-      showMessage("Search failed", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAvailabilityChange = async (value) => {
-    setAvailabilityFilter(value);
-
-    try {
-      setLoading(true);
-
-      if (value === "all") {
-        await loadFacilities();
-        return;
+      if (availabilityFilter !== "all") {
+        const isAvailable = availabilityFilter === "true";
+        workingData = workingData.filter(
+          (facility) => facility.available === isAvailable
+        );
       }
 
-      const response = await filterFacilities(value === "true");
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering facilities:", error);
-      showMessage("Availability filter failed", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTypeFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!typeFilter.trim()) {
-        await loadFacilities();
-        return;
+      if (typeFilter.trim()) {
+        workingData = workingData.filter(
+          (facility) =>
+            String(facility.type || "").toLowerCase() ===
+            typeFilter.trim().toLowerCase()
+        );
       }
 
-      const response = await filterFacilitiesByType(typeFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by type:", error);
-      showMessage("Type filter failed", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLocationFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!locationFilter.trim()) {
-        await loadFacilities();
-        return;
+      if (locationFilter.trim()) {
+        workingData = workingData.filter((facility) =>
+          String(facility.location || "")
+            .toLowerCase()
+            .includes(locationFilter.trim().toLowerCase())
+        );
       }
 
-      const response = await filterFacilitiesByLocation(locationFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by location:", error);
-      showMessage("Location filter failed", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCapacityFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!capacityFilter) {
-        await loadFacilities();
-        return;
+      if (capacityFilter) {
+        workingData = workingData.filter(
+          (facility) => Number(facility.capacity) >= Number(capacityFilter)
+        );
       }
 
-      const response = await filterFacilitiesByCapacity(capacityFilter);
-      setFacilities(response.data);
-    } catch (error) {
-      console.error("Error filtering by capacity:", error);
-      showMessage("Capacity filter failed", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStatusFilter = async () => {
-    try {
-      setLoading(true);
-
-      if (!statusFilter.trim()) {
-        await loadFacilities();
-        return;
+      if (statusFilter.trim()) {
+        workingData = workingData.filter(
+          (facility) =>
+            String(facility.status || "").toUpperCase() ===
+            statusFilter.trim().toUpperCase()
+        );
       }
 
-      const response = await filterFacilitiesByStatus(statusFilter);
-      setFacilities(response.data);
+      setFacilities(workingData);
+      setCurrentPage(1);
     } catch (error) {
-      console.error("Error filtering by status:", error);
-      showMessage("Status filter failed", "error");
+      console.error("Error applying filters:", error);
+      showMessage("Filter failed", "error");
     } finally {
       setLoading(false);
     }
@@ -203,7 +154,8 @@ function FacilitiesPage() {
     setLocationFilter("");
     setCapacityFilter("");
     setStatusFilter("");
-    await loadFacilities();
+    setFacilities(allFacilities);
+    setCurrentPage(1);
   };
 
   const openDeleteConfirm = (id, name) => {
@@ -223,12 +175,34 @@ function FacilitiesPage() {
       await deleteFacility(selectedFacilityId);
       showMessage("Facility deleted successfully", "success");
       closeDeleteConfirm();
-      loadFacilities();
+      await loadFacilities();
     } catch (error) {
       console.error("Error deleting facility:", error);
       showMessage("Delete failed", "error");
       closeDeleteConfirm();
     }
+  };
+
+  const totalPages = Math.ceil(facilities.length / itemsPerPage);
+
+  const currentFacilities = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return facilities.slice(startIndex, startIndex + itemsPerPage);
+  }, [facilities, currentPage]);
+
+  const startItem = facilities.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, facilities.length);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
+  };
+
+  const handlePageClick = (pageNumber) => {
+    setCurrentPage(pageNumber);
   };
 
   return (
@@ -239,7 +213,7 @@ function FacilitiesPage() {
         <div>
           <h2 style={styles.heading}>Facilities List</h2>
           <p style={styles.subText}>
-            Manage lecture halls, labs, rooms, and resources.
+            Manage lecture halls, labs, rooms, and campus resources.
           </p>
         </div>
 
@@ -248,82 +222,99 @@ function FacilitiesPage() {
         </Link>
       </div>
 
-      <div style={styles.filterBar}>
-        <input
-          type="text"
-          placeholder="Search by facility name"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={styles.input}
-        />
-        <button onClick={handleSearch} style={styles.searchButton}>
-          Search
-        </button>
+      <div style={styles.filterPanel}>
+        <div style={styles.filterHeader}>
+          <h3 style={styles.filterTitle}>Search and Filter</h3>
+          <p style={styles.filterSubText}>
+            Use the fields below, then click Apply Filters.
+          </p>
+        </div>
 
-        <select
-          value={availabilityFilter}
-          onChange={(e) => handleAvailabilityChange(e.target.value)}
-          style={styles.select}
-        >
-          <option value="all">All Availability</option>
-          <option value="true">Available Only</option>
-          <option value="false">Unavailable Only</option>
-        </select>
+        <div style={styles.filterGrid}>
+          <div style={styles.fieldBlock}>
+            <label style={styles.label}>Facility Name</label>
+            <input
+              type="text"
+              placeholder="Search by facility name"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={styles.input}
+            />
+          </div>
 
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          style={styles.select}
-        >
-          <option value="">All Types</option>
-          <option value="Lecture Hall">Lecture Hall</option>
-          <option value="Lab">Lab</option>
-          <option value="Meeting Room">Meeting Room</option>
-          <option value="Equipment">Equipment</option>
-        </select>
-        <button onClick={handleTypeFilter} style={styles.secondaryButton}>
-          Type
-        </button>
+          <div style={styles.fieldBlock}>
+            <label style={styles.label}>Availability</label>
+            <select
+              value={availabilityFilter}
+              onChange={(e) => setAvailabilityFilter(e.target.value)}
+              style={styles.select}
+            >
+              <option value="all">All Availability</option>
+              <option value="true">Available Only</option>
+              <option value="false">Unavailable Only</option>
+            </select>
+          </div>
 
-        <input
-          type="text"
-          placeholder="Filter by location"
-          value={locationFilter}
-          onChange={(e) => setLocationFilter(e.target.value)}
-          style={styles.inputSmall}
-        />
-        <button onClick={handleLocationFilter} style={styles.secondaryButton}>
-          Location
-        </button>
+          <div style={styles.fieldBlock}>
+            <label style={styles.label}>Type</label>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              style={styles.select}
+            >
+              <option value="">All Types</option>
+              <option value="Lecture Hall">Lecture Hall</option>
+              <option value="Lab">Lab</option>
+              <option value="Meeting Room">Meeting Room</option>
+              <option value="Equipment">Equipment</option>
+            </select>
+          </div>
 
-        <input
-          type="number"
-          placeholder="Min capacity"
-          value={capacityFilter}
-          onChange={(e) => setCapacityFilter(e.target.value)}
-          style={styles.inputSmall}
-          min="1"
-        />
-        <button onClick={handleCapacityFilter} style={styles.secondaryButton}>
-          Capacity
-        </button>
+          <div style={styles.fieldBlock}>
+            <label style={styles.label}>Location</label>
+            <input
+              type="text"
+              placeholder="Filter by location"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              style={styles.input}
+            />
+          </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={styles.select}
-        >
-          <option value="">All Status</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
-        </select>
-        <button onClick={handleStatusFilter} style={styles.secondaryButton}>
-          Status
-        </button>
+          <div style={styles.fieldBlock}>
+            <label style={styles.label}>Minimum Capacity</label>
+            <input
+              type="number"
+              placeholder="Enter minimum capacity"
+              value={capacityFilter}
+              onChange={(e) => setCapacityFilter(e.target.value)}
+              style={styles.input}
+              min="1"
+            />
+          </div>
 
-        <button onClick={handleReset} style={styles.resetButton}>
-          Reset
-        </button>
+          <div style={styles.fieldBlock}>
+            <label style={styles.label}>Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={styles.select}
+            >
+              <option value="">All Status</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={styles.filterActions}>
+          <button onClick={handleApplyFilters} style={styles.applyButton}>
+            Apply Filters
+          </button>
+          <button onClick={handleReset} style={styles.resetButton}>
+            Reset
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -336,73 +327,140 @@ function FacilitiesPage() {
           <div style={styles.emptyIcon}>🏫</div>
           <h3 style={styles.emptyTitle}>No facilities found</h3>
           <p style={styles.emptyText}>
-            Try adjusting your filters or add a new facility to get started.
+            Try adjusting your search or filters, or add a new facility.
           </p>
           <Link to="/admin/facilities/add" style={styles.emptyButton}>
             + Add First Facility
           </Link>
         </div>
       ) : (
-        <div style={styles.cardGrid}>
-          {facilities.map((facility) => (
-            <div
-              key={facility.id}
-              style={styles.card}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow = "0 8px 22px rgba(0,0,0,0.12)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 3px 12px rgba(0,0,0,0.08)";
-              }}
-            >
-              <div style={styles.cardTop}>
-                <h3 style={styles.cardTitle}>{facility.name}</h3>
-                <span
-                  style={{
-                    ...styles.badge,
-                    backgroundColor: facility.available ? "#d1fae5" : "#fee2e2",
-                    color: facility.available ? "#065f46" : "#991b1b",
-                  }}
-                >
-                  {facility.available ? "Available" : "Unavailable"}
-                </span>
+        <>
+          <div style={styles.resultsBar}>
+            <span style={styles.resultsText}>
+              Showing {startItem}-{endItem} of {facilities.length} facilities
+            </span>
+          </div>
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>ID</th>
+                  <th style={styles.th}>Facility Name</th>
+                  <th style={styles.th}>Location</th>
+                  <th style={styles.th}>Type</th>
+                  <th style={styles.th}>Capacity</th>
+                  <th style={styles.th}>Availability</th>
+                  <th style={styles.th}>Status</th>
+                  <th style={styles.th}>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {currentFacilities.map((facility) => (
+                  <tr key={facility.id} style={styles.tr}>
+                    <td style={styles.td}>{facility.id}</td>
+                    <td style={styles.tdStrong}>{facility.name}</td>
+                    <td style={styles.td}>{facility.location || "N/A"}</td>
+                    <td style={styles.td}>{facility.type || "N/A"}</td>
+                    <td style={styles.td}>{facility.capacity}</td>
+                    <td style={styles.td}>
+                      <span
+                        style={{
+                          ...styles.badge,
+                          backgroundColor: facility.available ? "#d1fae5" : "#fee2e2",
+                          color: facility.available ? "#065f46" : "#991b1b",
+                        }}
+                      >
+                        {facility.available ? "Available" : "Unavailable"}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <span
+                        style={{
+                          ...styles.statusBadge,
+                          backgroundColor:
+                            String(facility.status || "").toUpperCase() === "ACTIVE"
+                              ? "#dbeafe"
+                              : "#fef3c7",
+                          color:
+                            String(facility.status || "").toUpperCase() === "ACTIVE"
+                              ? "#1d4ed8"
+                              : "#92400e",
+                        }}
+                      >
+                        {facility.status || "N/A"}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={styles.actionRow}>
+                        <Link
+                          to={`/admin/facilities/edit/${facility.id}`}
+                          style={styles.editButton}
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => openDeleteConfirm(facility.id, facility.name)}
+                          style={styles.deleteButton}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {facilities.length > itemsPerPage && (
+            <div style={styles.paginationWrapper}>
+              <button
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                style={{
+                  ...styles.pageButton,
+                  ...(currentPage === 1 ? styles.pageButtonDisabled : {}),
+                }}
+              >
+                Previous
+              </button>
+
+              <div style={styles.pageNumbers}>
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageClick(page)}
+                      style={{
+                        ...styles.pageNumberButton,
+                        ...(currentPage === page
+                          ? styles.activePageNumberButton
+                          : {}),
+                      }}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
               </div>
 
-              <div style={styles.infoRow}>
-                <strong>Location:</strong> {facility.location || "N/A"}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>Type:</strong> {facility.type || "N/A"}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>Capacity:</strong> {facility.capacity}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>Status:</strong> {facility.status || "N/A"}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>ID:</strong> {facility.id}
-              </div>
-
-              <div style={styles.actionRow}>
-                <Link
-                  to={`/admin/facilities/edit/${facility.id}`}
-                  style={styles.editButton}
-                >
-                  Edit
-                </Link>
-                <button
-                  onClick={() => openDeleteConfirm(facility.id, facility.name)}
-                  style={styles.deleteButton}
-                >
-                  Delete
-                </button>
-              </div>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                style={{
+                  ...styles.pageButton,
+                  ...(currentPage === totalPages
+                    ? styles.pageButtonDisabled
+                    : {}),
+                }}
+              >
+                Next
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {showDeleteConfirm && (
@@ -443,77 +501,187 @@ const styles = {
   heading: {
     color: "#1f2f6b",
     marginBottom: "6px",
+    fontSize: "34px",
   },
   subText: {
     color: "#555",
+    fontSize: "16px",
   },
   addButton: {
     backgroundColor: "#f4b400",
     color: "#1f2f6b",
     padding: "12px 18px",
-    borderRadius: "8px",
+    borderRadius: "10px",
     fontWeight: "bold",
     textDecoration: "none",
   },
-  filterBar: {
-    display: "flex",
-    gap: "12px",
-    marginBottom: "24px",
-    flexWrap: "wrap",
+
+  filterPanel: {
     backgroundColor: "#fff",
-    padding: "16px",
-    borderRadius: "12px",
+    padding: "20px",
+    borderRadius: "14px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    marginBottom: "24px",
+  },
+  filterHeader: {
+    marginBottom: "18px",
+  },
+  filterTitle: {
+    margin: "0 0 6px 0",
+    color: "#1f2f6b",
+    fontSize: "22px",
+  },
+  filterSubText: {
+    margin: 0,
+    color: "#64748b",
+    fontSize: "14px",
+  },
+  filterGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "16px",
+    marginBottom: "18px",
+  },
+  fieldBlock: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  label: {
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#334155",
   },
   input: {
-    flex: "1",
-    minWidth: "220px",
+    width: "100%",
     padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
     outline: "none",
-  },
-  inputSmall: {
-    minWidth: "160px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    outline: "none",
+    boxSizing: "border-box",
   },
   select: {
+    width: "100%",
     padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    minWidth: "170px",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
     outline: "none",
+    boxSizing: "border-box",
+    backgroundColor: "#fff",
   },
-  searchButton: {
+  filterActions: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+  applyButton: {
     backgroundColor: "#1f2f6b",
     color: "#fff",
     border: "none",
     padding: "12px 18px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  secondaryButton: {
-    backgroundColor: "#475569",
-    color: "#fff",
-    border: "none",
-    padding: "12px 14px",
-    borderRadius: "8px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "bold",
   },
   resetButton: {
-    backgroundColor: "#37424a",
+    backgroundColor: "#475569",
     color: "#fff",
     border: "none",
     padding: "12px 18px",
-    borderRadius: "8px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "bold",
   },
+
+  resultsBar: {
+    marginBottom: "14px",
+  },
+  resultsText: {
+    color: "#475569",
+    fontWeight: "600",
+    fontSize: "14px",
+  },
+
+  tableWrapper: {
+    backgroundColor: "#fff",
+    borderRadius: "14px",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    overflowX: "auto",
+    overflowY: "hidden",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    minWidth: "980px",
+  },
+  th: {
+    textAlign: "left",
+    padding: "16px",
+    backgroundColor: "#f8fafc",
+    color: "#1f2f6b",
+    fontSize: "14px",
+    fontWeight: "800",
+    borderBottom: "1px solid #e5e7eb",
+    whiteSpace: "nowrap",
+  },
+  tr: {
+    borderBottom: "1px solid #eef2f7",
+  },
+  td: {
+    padding: "16px",
+    color: "#334155",
+    fontSize: "14px",
+    verticalAlign: "middle",
+  },
+  tdStrong: {
+    padding: "16px",
+    color: "#1f2f6b",
+    fontSize: "15px",
+    fontWeight: "700",
+    verticalAlign: "middle",
+  },
+  badge: {
+    padding: "6px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    display: "inline-block",
+    whiteSpace: "nowrap",
+  },
+  statusBadge: {
+    padding: "6px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    display: "inline-block",
+    whiteSpace: "nowrap",
+    textTransform: "uppercase",
+  },
+  actionRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+  editButton: {
+    backgroundColor: "#1f2f6b",
+    color: "#fff",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    textDecoration: "none",
+    fontSize: "14px",
+  },
+  deleteButton: {
+    backgroundColor: "#dc2626",
+    color: "#fff",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "14px",
+  },
+
   loaderWrapper: {
     display: "flex",
     flexDirection: "column",
@@ -537,6 +705,7 @@ const styles = {
     color: "#37424a",
     fontWeight: "bold",
   },
+
   emptyBox: {
     backgroundColor: "#fff",
     padding: "40px 30px",
@@ -565,64 +734,51 @@ const styles = {
     fontWeight: "bold",
     textDecoration: "none",
   },
-  cardGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: "20px",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: "14px",
-    padding: "20px",
-    boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-    transition: "all 0.2s ease",
-    borderLeft: "5px solid #f4b400",
-  },
-  cardTop: {
+
+  paginationWrapper: {
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
-    gap: "10px",
-    marginBottom: "16px",
+    gap: "12px",
+    marginTop: "24px",
     flexWrap: "wrap",
   },
-  cardTitle: {
-    color: "#1f2f6b",
-    fontSize: "24px",
-  },
-  badge: {
-    padding: "6px 12px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: "bold",
-  },
-  infoRow: {
-    marginBottom: "10px",
-    color: "#333",
-    fontSize: "16px",
-  },
-  actionRow: {
+  pageNumbers: {
     display: "flex",
-    gap: "10px",
-    marginTop: "18px",
+    gap: "8px",
+    flexWrap: "wrap",
+    justifyContent: "center",
   },
-  editButton: {
+  pageButton: {
     backgroundColor: "#1f2f6b",
     color: "#fff",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    textDecoration: "none",
-  },
-  deleteButton: {
-    backgroundColor: "#dc2626",
-    color: "#fff",
     border: "none",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    padding: "10px 16px",
+    borderRadius: "10px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
+  pageButtonDisabled: {
+    backgroundColor: "#cbd5e1",
+    color: "#64748b",
+    cursor: "not-allowed",
+  },
+  pageNumberButton: {
+    backgroundColor: "#ffffff",
+    color: "#1f2f6b",
+    border: "1px solid #cbd5e1",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "700",
+    minWidth: "42px",
+  },
+  activePageNumberButton: {
+    backgroundColor: "#1f2f6b",
+    color: "#ffffff",
+    border: "1px solid #1f2f6b",
+  },
+
   modalOverlay: {
     position: "fixed",
     inset: 0,
