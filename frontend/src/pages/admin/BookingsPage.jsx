@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Toast from "../../components/common/Toast";
 import { getAllFacilities } from "../../api/facilityApi";
 import {
@@ -15,6 +15,7 @@ function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [facilityFilter, setFacilityFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -23,6 +24,9 @@ function BookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [reviewStatus, setReviewStatus] = useState("APPROVED");
   const [reviewReason, setReviewReason] = useState("");
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [detailsBooking, setDetailsBooking] = useState(null);
 
   const showMessage = (text, type = "success") => {
     setMessage(text);
@@ -37,7 +41,7 @@ function BookingsPage() {
   const loadFacilities = async () => {
     try {
       const response = await getAllFacilities();
-      setFacilities(response.data);
+      setFacilities(response.data || []);
     } catch (error) {
       console.error("Error loading facilities:", error);
     }
@@ -62,7 +66,27 @@ function BookingsPage() {
       }
 
       const response = await getAllBookings(params);
-      setBookings(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+
+      const sorted = [...data].sort((a, b) => {
+        const statusOrder = {
+          PENDING: 1,
+          APPROVED: 2,
+          REJECTED: 3,
+          CANCELLED: 4,
+        };
+
+        const statusA = statusOrder[String(a.status || "").toUpperCase()] || 99;
+        const statusB = statusOrder[String(b.status || "").toUpperCase()] || 99;
+
+        if (statusA !== statusB) {
+          return statusA - statusB;
+        }
+
+        return (b.id || 0) - (a.id || 0);
+      });
+
+      setBookings(sorted);
     } catch (error) {
       console.error("Error loading bookings:", error);
       showMessage("Failed to load bookings.", "error");
@@ -79,6 +103,52 @@ function BookingsPage() {
     loadBookings();
   }, [statusFilter, facilityFilter, dateFilter]);
 
+  const filteredBookings = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
+
+    if (!keyword) {
+      return bookings;
+    }
+
+    return bookings.filter((booking) => {
+      const facilityName = String(booking.facility?.name || "").toLowerCase();
+      const location = String(booking.facility?.location || "").toLowerCase();
+      const type = String(booking.facility?.type || "").toLowerCase();
+      const userName = String(booking.userName || "").toLowerCase();
+      const userEmail = String(booking.userEmail || "").toLowerCase();
+      const purpose = String(booking.purpose || "").toLowerCase();
+      const status = String(booking.status || "").toLowerCase();
+
+      return (
+        facilityName.includes(keyword) ||
+        location.includes(keyword) ||
+        type.includes(keyword) ||
+        userName.includes(keyword) ||
+        userEmail.includes(keyword) ||
+        purpose.includes(keyword) ||
+        status.includes(keyword)
+      );
+    });
+  }, [bookings, searchText]);
+
+  const stats = useMemo(() => {
+    return {
+      total: bookings.length,
+      pending: bookings.filter(
+        (b) => String(b.status).toUpperCase() === "PENDING"
+      ).length,
+      approved: bookings.filter(
+        (b) => String(b.status).toUpperCase() === "APPROVED"
+      ).length,
+      rejected: bookings.filter(
+        (b) => String(b.status).toUpperCase() === "REJECTED"
+      ).length,
+      cancelled: bookings.filter(
+        (b) => String(b.status).toUpperCase() === "CANCELLED"
+      ).length,
+    };
+  }, [bookings]);
+
   const openReviewModal = (booking, status) => {
     setSelectedBooking(booking);
     setReviewStatus(status);
@@ -91,6 +161,16 @@ function BookingsPage() {
     setReviewStatus("APPROVED");
     setReviewReason("");
     setReviewModalOpen(false);
+  };
+
+  const openDetailsModal = (booking) => {
+    setDetailsBooking(booking);
+    setDetailsModalOpen(true);
+  };
+
+  const closeDetailsModal = () => {
+    setDetailsBooking(null);
+    setDetailsModalOpen(false);
   };
 
   const handleReviewSubmit = async () => {
@@ -108,7 +188,9 @@ function BookingsPage() {
       });
 
       showMessage(
-        `Booking ${reviewStatus === "APPROVED" ? "approved" : "rejected"} successfully.`,
+        `Booking ${
+          reviewStatus === "APPROVED" ? "approved" : "rejected"
+        } successfully.`,
         "success"
       );
 
@@ -145,6 +227,7 @@ function BookingsPage() {
     setStatusFilter("");
     setFacilityFilter("");
     setDateFilter("");
+    setSearchText("");
   };
 
   const getStatusStyle = (status) => {
@@ -177,16 +260,40 @@ function BookingsPage() {
             bookings.
           </p>
         </div>
+      </div>
 
-        <div style={styles.headerStats}>
-          <div style={styles.statCard}>
-            <div style={styles.statNumber}>{bookings.length}</div>
-            <div style={styles.statLabel}>Visible Bookings</div>
-          </div>
+      <div style={styles.statsGrid}>
+        <div style={styles.statCard}>
+          <div style={styles.statNumber}>{stats.total}</div>
+          <div style={styles.statLabel}>Total Bookings</div>
+        </div>
+        <div style={{ ...styles.statCard, borderLeft: "5px solid #f59e0b" }}>
+          <div style={styles.statNumber}>{stats.pending}</div>
+          <div style={styles.statLabel}>Pending</div>
+        </div>
+        <div style={{ ...styles.statCard, borderLeft: "5px solid #16a34a" }}>
+          <div style={styles.statNumber}>{stats.approved}</div>
+          <div style={styles.statLabel}>Approved</div>
+        </div>
+        <div style={{ ...styles.statCard, borderLeft: "5px solid #dc2626" }}>
+          <div style={styles.statNumber}>{stats.rejected}</div>
+          <div style={styles.statLabel}>Rejected</div>
+        </div>
+        <div style={{ ...styles.statCard, borderLeft: "5px solid #64748b" }}>
+          <div style={styles.statNumber}>{stats.cancelled}</div>
+          <div style={styles.statLabel}>Cancelled</div>
         </div>
       </div>
 
       <div style={styles.filterBar}>
+        <input
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={styles.searchInput}
+          placeholder="Search by facility, requester, email, purpose..."
+        />
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -230,10 +337,9 @@ function BookingsPage() {
 
       {loading ? (
         <div style={styles.loaderWrapper}>
-          <div style={styles.spinner} />
           <p style={styles.loadingText}>Loading bookings...</p>
         </div>
-      ) : bookings.length === 0 ? (
+      ) : filteredBookings.length === 0 ? (
         <div style={styles.emptyBox}>
           <div style={styles.emptyIcon}>📅</div>
           <h3 style={styles.emptyTitle}>No bookings found</h3>
@@ -243,7 +349,7 @@ function BookingsPage() {
         </div>
       ) : (
         <div style={styles.cardGrid}>
-          {bookings.map((booking) => (
+          {filteredBookings.map((booking) => (
             <div key={booking.id} style={styles.card}>
               <div style={styles.cardTop}>
                 <h3 style={styles.cardTitle}>
@@ -270,9 +376,6 @@ function BookingsPage() {
                 {booking.facility?.location || "N/A"}
               </div>
               <div style={styles.infoRow}>
-                <strong>Type:</strong> {booking.facility?.type || "N/A"}
-              </div>
-              <div style={styles.infoRow}>
                 <strong>Date:</strong> {booking.bookingDate}
               </div>
               <div style={styles.infoRow}>
@@ -282,9 +385,6 @@ function BookingsPage() {
                 <strong>Expected Attendees:</strong>{" "}
                 {booking.expectedAttendees}
               </div>
-              <div style={styles.infoRow}>
-                <strong>Purpose:</strong> {booking.purpose}
-              </div>
 
               {booking.adminReason && (
                 <div style={styles.reasonBox}>
@@ -293,6 +393,14 @@ function BookingsPage() {
               )}
 
               <div style={styles.actionRow}>
+                <button
+                  type="button"
+                  onClick={() => openDetailsModal(booking)}
+                  style={styles.viewButton}
+                >
+                  View Details
+                </button>
+
                 {String(booking.status).toUpperCase() === "PENDING" && (
                   <>
                     <button
@@ -319,7 +427,7 @@ function BookingsPage() {
                     onClick={() => handleCancelBooking(booking.id)}
                     style={styles.cancelButton}
                   >
-                    Cancel Booking
+                    Cancel
                   </button>
                 )}
               </div>
@@ -377,6 +485,77 @@ function BookingsPage() {
           </div>
         </div>
       )}
+
+      {detailsModalOpen && detailsBooking && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.detailsModalBox}>
+            <h3 style={styles.modalTitle}>Booking Details</h3>
+
+            <div style={styles.detailsGrid}>
+              <div style={styles.detailItem}>
+                <strong>Booking ID:</strong> {detailsBooking.id}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Status:</strong> {detailsBooking.status}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Requester:</strong> {detailsBooking.userName}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Email:</strong> {detailsBooking.userEmail}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Facility:</strong>{" "}
+                {detailsBooking.facility?.name || "N/A"}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Location:</strong>{" "}
+                {detailsBooking.facility?.location || "N/A"}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Type:</strong> {detailsBooking.facility?.type || "N/A"}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Capacity:</strong>{" "}
+                {detailsBooking.facility?.capacity || "N/A"}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Date:</strong> {detailsBooking.bookingDate}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Time:</strong> {detailsBooking.startTime} -{" "}
+                {detailsBooking.endTime}
+              </div>
+              <div style={styles.detailItem}>
+                <strong>Expected Attendees:</strong>{" "}
+                {detailsBooking.expectedAttendees}
+              </div>
+            </div>
+
+            <div style={styles.detailsPurposeBox}>
+              <strong>Purpose:</strong>
+              <p style={styles.detailsParagraph}>{detailsBooking.purpose}</p>
+            </div>
+
+            {detailsBooking.adminReason && (
+              <div style={styles.detailsReasonBox}>
+                <strong>Admin Note:</strong>
+                <p style={styles.detailsParagraph}>{detailsBooking.adminReason}</p>
+              </div>
+            )}
+
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                onClick={closeDetailsModal}
+                style={styles.modalCancelButton}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -398,18 +577,18 @@ const styles = {
     color: "#555",
     lineHeight: "1.6",
   },
-  headerStats: {
-    display: "flex",
-    gap: "14px",
-    flexWrap: "wrap",
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "16px",
+    marginBottom: "22px",
   },
   statCard: {
     backgroundColor: "#fff",
     padding: "18px 22px",
     borderRadius: "12px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-    borderLeft: "5px solid #f4b400",
-    minWidth: "180px",
+    borderLeft: "5px solid #1f2f6b",
   },
   statNumber: {
     fontSize: "30px",
@@ -430,6 +609,14 @@ const styles = {
     padding: "16px",
     borderRadius: "12px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: "240px",
+    padding: "12px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+    outline: "none",
   },
   input: {
     minWidth: "180px",
@@ -457,24 +644,14 @@ const styles = {
   },
   loaderWrapper: {
     display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#fff",
     padding: "50px 20px",
     borderRadius: "14px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
   },
-  spinner: {
-    width: "42px",
-    height: "42px",
-    border: "5px solid #e5e7eb",
-    borderTop: "5px solid #1f2f6b",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
   loadingText: {
-    marginTop: "14px",
     color: "#37424a",
     fontWeight: "bold",
   },
@@ -506,7 +683,6 @@ const styles = {
     borderRadius: "14px",
     padding: "20px",
     boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-    transition: "all 0.2s ease",
     borderLeft: "5px solid #f4b400",
   },
   cardTop: {
@@ -548,6 +724,15 @@ const styles = {
     marginTop: "18px",
     flexWrap: "wrap",
   },
+  viewButton: {
+    backgroundColor: "#1f2f6b",
+    color: "#fff",
+    border: "none",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "bold",
+  },
   approveButton: {
     backgroundColor: "#16a34a",
     color: "#fff",
@@ -583,11 +768,20 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
+    padding: "20px",
   },
   modalBox: {
     backgroundColor: "#fff",
     width: "90%",
     maxWidth: "480px",
+    padding: "28px",
+    borderRadius: "14px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+  },
+  detailsModalBox: {
+    backgroundColor: "#fff",
+    width: "90%",
+    maxWidth: "720px",
     padding: "28px",
     borderRadius: "14px",
     boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
@@ -623,6 +817,7 @@ const styles = {
     justifyContent: "flex-end",
     gap: "12px",
     flexWrap: "wrap",
+    marginTop: "18px",
   },
   modalCancelButton: {
     backgroundColor: "#e5e7eb",
@@ -650,6 +845,36 @@ const styles = {
     borderRadius: "8px",
     cursor: "pointer",
     fontWeight: "bold",
+  },
+  detailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "14px",
+    marginTop: "12px",
+  },
+  detailItem: {
+    backgroundColor: "#f8fafc",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    color: "#334155",
+    lineHeight: "1.6",
+  },
+  detailsPurposeBox: {
+    marginTop: "18px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "10px",
+    padding: "14px 16px",
+  },
+  detailsReasonBox: {
+    marginTop: "14px",
+    backgroundColor: "#fff7ed",
+    borderRadius: "10px",
+    padding: "14px 16px",
+  },
+  detailsParagraph: {
+    marginTop: "8px",
+    color: "#334155",
+    lineHeight: "1.7",
   },
 };
 
