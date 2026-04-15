@@ -10,6 +10,9 @@ import { createBooking, getMyBookings, cancelBooking } from "../api/bookingApi";
 function BookingsPage() {
   const location = useLocation();
 
+  const CAMPUS_OPEN_TIME = "06:00";
+  const CAMPUS_CLOSE_TIME = "22:00";
+
   const getStoredUser = () => {
     try {
       const rawUser =
@@ -37,7 +40,22 @@ function BookingsPage() {
     }
   };
 
+  const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const timeToMinutes = (time) => {
+    if (!time || !time.includes(":")) return null;
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+
   const storedUser = getStoredUser();
+  const todayString = getTodayString();
 
   const [facilities, setFacilities] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
@@ -47,6 +65,7 @@ function BookingsPage() {
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
+  const [formError, setFormError] = useState("");
 
   const [form, setForm] = useState({
     facilityId: "",
@@ -137,8 +156,73 @@ function BookingsPage() {
     [facilities, form.facilityId]
   );
 
+  const validateForm = () => {
+    if (!form.facilityId) {
+      return "Please select a facility.";
+    }
+
+    if (!form.userName.trim()) {
+      return "Please enter your name.";
+    }
+
+    if (!form.userEmail.trim()) {
+      return "Please enter your email.";
+    }
+
+    if (!form.bookingDate) {
+      return "Please select a booking date.";
+    }
+
+    if (form.bookingDate < todayString) {
+      return "Past dates cannot be booked.";
+    }
+
+    if (!form.startTime || !form.endTime) {
+      return "Please select both start time and end time.";
+    }
+
+    const startMinutes = timeToMinutes(form.startTime);
+    const endMinutes = timeToMinutes(form.endTime);
+    const openMinutes = timeToMinutes(CAMPUS_OPEN_TIME);
+    const closeMinutes = timeToMinutes(CAMPUS_CLOSE_TIME);
+
+    if (startMinutes < openMinutes || endMinutes > closeMinutes) {
+      return "Bookings are allowed only between 6:00 AM and 10:00 PM.";
+    }
+
+    if (startMinutes >= endMinutes) {
+      return "Start time must be earlier than end time.";
+    }
+
+    if (!form.expectedAttendees || Number(form.expectedAttendees) < 1) {
+      return "Expected attendees must be at least 1.";
+    }
+
+    if (selectedFacility && Number(form.expectedAttendees) > selectedFacility.capacity) {
+      return `Expected attendees cannot exceed facility capacity (${selectedFacility.capacity}).`;
+    }
+
+    if (!form.purpose.trim()) {
+      return "Please enter the purpose of the booking.";
+    }
+
+    if (selectedFacility) {
+      if (!selectedFacility.available) {
+        return "This facility is currently unavailable.";
+      }
+
+      if (String(selectedFacility.status || "").toUpperCase() !== "ACTIVE") {
+        return "Only ACTIVE facilities can be booked.";
+      }
+    }
+
+    return "";
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    setFormError("");
 
     setForm((prev) => ({
       ...prev,
@@ -149,8 +233,17 @@ function BookingsPage() {
   const handleCreateBooking = async (e) => {
     e.preventDefault();
 
+    const validationMessage = validateForm();
+
+    if (validationMessage) {
+      setFormError(validationMessage);
+      showMessage(validationMessage, "error");
+      return;
+    }
+
     try {
       setSubmitting(true);
+      setFormError("");
 
       await createBooking({
         facilityId: Number(form.facilityId),
@@ -180,15 +273,10 @@ function BookingsPage() {
 
       const backendMessage =
         error?.response?.data?.message ||
-        error?.response?.data?.messages ||
         "Failed to create booking.";
 
-      showMessage(
-        typeof backendMessage === "string"
-          ? backendMessage
-          : "Failed to create booking.",
-        "error"
-      );
+      setFormError(backendMessage);
+      showMessage(backendMessage, "error");
     } finally {
       setSubmitting(false);
     }
@@ -280,9 +368,11 @@ function BookingsPage() {
           <div style={styles.formCard}>
             <h2 style={styles.cardTitle}>Request a New Booking</h2>
             <p style={styles.cardSubText}>
-              Fill in the form below to submit your request. New requests will
-              be saved with pending status.
+              Fill in the form below to submit your request. Campus booking
+              hours are from <strong>6:00 AM</strong> to <strong>10:00 PM</strong>.
             </p>
+
+            {formError && <div style={styles.errorBox}>{formError}</div>}
 
             <form onSubmit={handleCreateBooking} style={styles.formGrid}>
               <div style={styles.field}>
@@ -337,6 +427,7 @@ function BookingsPage() {
                   value={form.bookingDate}
                   onChange={handleChange}
                   style={styles.input}
+                  min={todayString}
                   required
                 />
               </div>
@@ -349,8 +440,13 @@ function BookingsPage() {
                   value={form.startTime}
                   onChange={handleChange}
                   style={styles.input}
+                  min={CAMPUS_OPEN_TIME}
+                  max={CAMPUS_CLOSE_TIME}
                   required
                 />
+                <small style={styles.helperText}>
+                  Allowed from 06:00 to 22:00
+                </small>
               </div>
 
               <div style={styles.field}>
@@ -361,8 +457,13 @@ function BookingsPage() {
                   value={form.endTime}
                   onChange={handleChange}
                   style={styles.input}
+                  min={CAMPUS_OPEN_TIME}
+                  max={CAMPUS_CLOSE_TIME}
                   required
                 />
+                <small style={styles.helperText}>
+                  End time must be after start time
+                </small>
               </div>
 
               <div style={styles.field}>
@@ -375,8 +476,14 @@ function BookingsPage() {
                   style={styles.input}
                   placeholder="Enter expected attendees"
                   min="1"
+                  max={selectedFacility?.capacity || undefined}
                   required
                 />
+                {selectedFacility && (
+                  <small style={styles.helperText}>
+                    Maximum allowed: {selectedFacility.capacity}
+                  </small>
+                )}
               </div>
 
               <div style={{ ...styles.field, gridColumn: "1 / -1" }}>
@@ -430,6 +537,9 @@ function BookingsPage() {
                   <strong>Available:</strong>{" "}
                   {selectedFacility.available ? "Yes" : "No"}
                 </div>
+                <div style={styles.detailRow}>
+                  <strong>Campus Hours:</strong> 6:00 AM - 10:00 PM
+                </div>
               </div>
             ) : (
               <p style={styles.infoText}>
@@ -469,7 +579,6 @@ function BookingsPage() {
 
           {loadingBookings ? (
             <div style={styles.loaderWrapper}>
-              <div style={styles.spinner} />
               <p style={styles.loadingText}>Loading your bookings...</p>
             </div>
           ) : myBookings.length === 0 ? (
@@ -509,8 +618,7 @@ function BookingsPage() {
                     <strong>Date:</strong> {booking.bookingDate}
                   </div>
                   <div style={styles.infoRow}>
-                    <strong>Time:</strong> {booking.startTime} -{" "}
-                    {booking.endTime}
+                    <strong>Time:</strong> {booking.startTime} - {booking.endTime}
                   </div>
                   <div style={styles.infoRow}>
                     <strong>Purpose:</strong> {booking.purpose}
@@ -631,6 +739,15 @@ const styles = {
     lineHeight: "1.6",
     marginBottom: "18px",
   },
+  errorBox: {
+    backgroundColor: "#fee2e2",
+    color: "#991b1b",
+    border: "1px solid #fecaca",
+    padding: "12px 14px",
+    borderRadius: "10px",
+    marginBottom: "18px",
+    fontWeight: "600",
+  },
   formGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -671,6 +788,10 @@ const styles = {
     fontSize: "15px",
     resize: "vertical",
     fontFamily: "inherit",
+  },
+  helperText: {
+    color: "#64748b",
+    fontSize: "12px",
   },
   primaryButton: {
     backgroundColor: "#1f2f6b",
@@ -732,23 +853,13 @@ const styles = {
   },
   loaderWrapper: {
     display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#fff",
-    padding: "50px 20px",
+    padding: "40px 20px",
     borderRadius: "14px",
   },
-  spinner: {
-    width: "42px",
-    height: "42px",
-    border: "5px solid #e5e7eb",
-    borderTop: "5px solid #1f2f6b",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
   loadingText: {
-    marginTop: "14px",
     color: "#37424a",
     fontWeight: "bold",
   },

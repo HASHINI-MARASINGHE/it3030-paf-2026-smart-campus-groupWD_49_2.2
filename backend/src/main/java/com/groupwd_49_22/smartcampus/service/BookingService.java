@@ -22,6 +22,9 @@ import java.util.stream.Collectors;
 @Service
 public class BookingService {
 
+    private static final LocalTime CAMPUS_OPEN_TIME = LocalTime.of(6, 0);
+    private static final LocalTime CAMPUS_CLOSE_TIME = LocalTime.of(22, 0);
+
     private final BookingRepository bookingRepository;
     private final FacilityRepository facilityRepository;
 
@@ -31,6 +34,7 @@ public class BookingService {
     }
 
     public Booking createBooking(BookingRequest request) {
+        validateBookingDate(request.getBookingDate());
         validateTimeRange(request.getStartTime(), request.getEndTime());
 
         Facility facility = facilityRepository.findById(request.getFacilityId())
@@ -96,6 +100,9 @@ public class BookingService {
 
     public Booking reviewBooking(Long id, BookingReviewRequest request) {
         Booking booking = getBookingById(id);
+
+        validateBookingDate(booking.getBookingDate());
+        validateTimeRange(booking.getStartTime(), booking.getEndTime());
 
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new ResponseStatusException(
@@ -185,10 +192,33 @@ public class BookingService {
             );
         }
 
-        if (expectedAttendees != null && expectedAttendees > facility.getCapacity()) {
+        if (expectedAttendees == null || expectedAttendees < 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Expected attendees must be at least 1."
+            );
+        }
+
+        if (expectedAttendees > facility.getCapacity()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Expected attendees exceed the facility capacity."
+            );
+        }
+    }
+
+    private void validateBookingDate(LocalDate bookingDate) {
+        if (bookingDate == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Booking date is required."
+            );
+        }
+
+        if (bookingDate.isBefore(LocalDate.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Past dates cannot be booked."
             );
         }
     }
@@ -205,6 +235,13 @@ public class BookingService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Start time must be earlier than end time."
+            );
+        }
+
+        if (startTime.isBefore(CAMPUS_OPEN_TIME) || endTime.isAfter(CAMPUS_CLOSE_TIME)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Bookings are allowed only between 06:00 and 22:00."
             );
         }
     }
