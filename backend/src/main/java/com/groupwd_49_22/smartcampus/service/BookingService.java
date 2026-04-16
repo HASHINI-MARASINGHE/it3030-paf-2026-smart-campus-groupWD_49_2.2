@@ -1,7 +1,9 @@
 package com.groupwd_49_22.smartcampus.service;
 
+import com.groupwd_49_22.smartcampus.dto.BookingAvailabilityResponse;
 import com.groupwd_49_22.smartcampus.dto.BookingRequest;
 import com.groupwd_49_22.smartcampus.dto.BookingReviewRequest;
+import com.groupwd_49_22.smartcampus.dto.TimeSlotDto;
 import com.groupwd_49_22.smartcampus.exception.ResourceNotFoundException;
 import com.groupwd_49_22.smartcampus.model.Booking;
 import com.groupwd_49_22.smartcampus.model.BookingStatus;
@@ -14,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -174,6 +177,52 @@ public class BookingService {
         booking.setAdminReason("Cancelled by user/admin");
 
         return bookingRepository.save(booking);
+    }
+
+    public BookingAvailabilityResponse getBookingAvailability(Long facilityId, LocalDate bookingDate) {
+        validateBookingDate(bookingDate);
+
+        facilityRepository.findById(facilityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Facility not found with id: " + facilityId));
+
+        List<Booking> sameDayBookings = bookingRepository.findByFacilityIdAndBookingDateAndStatusInOrderByStartTimeAsc(
+                facilityId,
+                bookingDate,
+                List.of(BookingStatus.PENDING, BookingStatus.APPROVED)
+        );
+
+        List<TimeSlotDto> bookedSlots = sameDayBookings.stream()
+                .map(booking -> new TimeSlotDto(booking.getStartTime(), booking.getEndTime()))
+                .collect(Collectors.toList());
+
+        List<TimeSlotDto> availableSlots = new ArrayList<>();
+        LocalTime cursor = CAMPUS_OPEN_TIME;
+
+        for (Booking booking : sameDayBookings) {
+            LocalTime start = booking.getStartTime();
+            LocalTime end = booking.getEndTime();
+
+            if (cursor.isBefore(start)) {
+                availableSlots.add(new TimeSlotDto(cursor, start));
+            }
+
+            if (end.isAfter(cursor)) {
+                cursor = end;
+            }
+        }
+
+        if (cursor.isBefore(CAMPUS_CLOSE_TIME)) {
+            availableSlots.add(new TimeSlotDto(cursor, CAMPUS_CLOSE_TIME));
+        }
+
+        return new BookingAvailabilityResponse(
+                facilityId,
+                bookingDate,
+                CAMPUS_OPEN_TIME,
+                CAMPUS_CLOSE_TIME,
+                bookedSlots,
+                availableSlots
+        );
     }
 
     private void validateFacilityForBooking(Facility facility, Integer expectedAttendees) {

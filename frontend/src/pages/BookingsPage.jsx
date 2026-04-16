@@ -5,7 +5,12 @@ import HeroSection from "../components/HeroSection";
 import Footer from "../components/Footer";
 import Toast from "../components/common/Toast";
 import { getAllFacilities } from "../api/facilityApi";
-import { createBooking, getMyBookings, cancelBooking } from "../api/bookingApi";
+import {
+  createBooking,
+  getMyBookings,
+  cancelBooking,
+  getBookingAvailability,
+} from "../api/bookingApi";
 
 function BookingsPage() {
   const location = useLocation();
@@ -54,13 +59,20 @@ function BookingsPage() {
     return hours * 60 + minutes;
   };
 
+  const formatTime = (time) => {
+    if (!time) return "";
+    return String(time).slice(0, 5);
+  };
+
   const storedUser = getStoredUser();
   const todayString = getTodayString();
 
   const [facilities, setFacilities] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
+  const [availabilityData, setAvailabilityData] = useState(null);
   const [loadingFacilities, setLoadingFacilities] = useState(true);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [message, setMessage] = useState("");
@@ -126,6 +138,24 @@ function BookingsPage() {
     }
   };
 
+  const loadAvailability = async (facilityId, bookingDate) => {
+    if (!facilityId || !bookingDate || bookingDate < todayString) {
+      setAvailabilityData(null);
+      return;
+    }
+
+    try {
+      setLoadingAvailability(true);
+      const response = await getBookingAvailability(facilityId, bookingDate);
+      setAvailabilityData(response.data);
+    } catch (error) {
+      console.error("Error loading availability:", error);
+      setAvailabilityData(null);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
   useEffect(() => {
     loadFacilities();
   }, []);
@@ -147,6 +177,10 @@ function BookingsPage() {
       loadMyBookings(form.userEmail);
     }
   }, []);
+
+  useEffect(() => {
+    loadAvailability(form.facilityId, form.bookingDate);
+  }, [form.facilityId, form.bookingDate]);
 
   const selectedFacility = useMemo(
     () =>
@@ -198,7 +232,10 @@ function BookingsPage() {
       return "Expected attendees must be at least 1.";
     }
 
-    if (selectedFacility && Number(form.expectedAttendees) > selectedFacility.capacity) {
+    if (
+      selectedFacility &&
+      Number(form.expectedAttendees) > selectedFacility.capacity
+    ) {
       return `Expected attendees cannot exceed facility capacity (${selectedFacility.capacity}).`;
     }
 
@@ -221,13 +258,22 @@ function BookingsPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormError("");
 
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleUseTimeSlot = (slot) => {
+    setForm((prev) => ({
+      ...prev,
+      startTime: formatTime(slot.startTime),
+      endTime: formatTime(slot.endTime),
+    }));
+    setFormError("");
+    showMessage("Suggested time slot applied.", "success");
   };
 
   const handleCreateBooking = async (e) => {
@@ -267,13 +313,13 @@ function BookingsPage() {
         expectedAttendees: "",
       }));
 
+      setAvailabilityData(null);
       await loadMyBookings(form.userEmail);
     } catch (error) {
       console.error("Error creating booking:", error);
 
       const backendMessage =
-        error?.response?.data?.message ||
-        "Failed to create booking.";
+        error?.response?.data?.message || "Failed to create booking.";
 
       setFormError(backendMessage);
       showMessage(backendMessage, "error");
@@ -297,6 +343,7 @@ function BookingsPage() {
       await cancelBooking(bookingId);
       showMessage("Booking cancelled successfully.", "success");
       await loadMyBookings(form.userEmail);
+      await loadAvailability(form.facilityId, form.bookingDate);
     } catch (error) {
       console.error("Error cancelling booking:", error);
       const backendMessage =
@@ -324,8 +371,8 @@ function BookingsPage() {
 
     if (value === "CANCELLED") {
       return {
-        backgroundColor: "#e5e7eb",
-        color: "#374151",
+        backgroundColor: "#e2e8f0",
+        color: "#334155",
       };
     }
 
@@ -339,38 +386,43 @@ function BookingsPage() {
     <div style={styles.page}>
       <Navbar />
       <HeroSection />
-
       <Toast message={message} type={messageType} onClose={clearMessage} />
 
       <main style={styles.content}>
-        <section style={styles.topSection}>
-          <div style={styles.sectionHeadingWrap}>
-            <h1 style={styles.sectionTitle}>Booking Management</h1>
-            <p style={styles.sectionSubText}>
-              Request a booking for a facility and track all your booking
-              requests in one place.
+        <section style={styles.headerCard}>
+          <div style={styles.headerLeft}>
+            <div style={styles.smallTag}>Smart Campus Operations Hub</div>
+            <h1 style={styles.pageTitle}>Booking Management</h1>
+            <p style={styles.pageSubtitle}>
+              Create booking requests, check suggested free time slots, and
+              manage your bookings in one clean place.
             </p>
           </div>
 
-          <div style={styles.topStats}>
-            <div style={styles.statCard}>
-              <div style={styles.statNumber}>{facilities.length}</div>
-              <div style={styles.statLabel}>Bookable Facilities</div>
+          <div style={styles.statsWrap}>
+            <div style={styles.statBox}>
+              <span style={styles.statTitle}>Bookable Facilities</span>
+              <span style={styles.statValue}>{facilities.length}</span>
             </div>
-            <div style={styles.statCard}>
-              <div style={styles.statNumber}>{myBookings.length}</div>
-              <div style={styles.statLabel}>My Booking Records</div>
+            <div style={styles.statBox}>
+              <span style={styles.statTitle}>My Bookings</span>
+              <span style={styles.statValue}>{myBookings.length}</span>
             </div>
           </div>
         </section>
 
-        <section style={styles.formSection}>
+        <section style={styles.mainGrid}>
           <div style={styles.formCard}>
-            <h2 style={styles.cardTitle}>Request a New Booking</h2>
-            <p style={styles.cardSubText}>
-              Fill in the form below to submit your request. Campus booking
-              hours are from <strong>6:00 AM</strong> to <strong>10:00 PM</strong>.
-            </p>
+            <div style={styles.cardTop}>
+              <div>
+                <h2 style={styles.cardTitle}>Request a New Booking</h2>
+                <p style={styles.cardDesc}>
+                  Allowed booking hours are <strong>6:00 AM</strong> to{" "}
+                  <strong>10:00 PM</strong>.
+                </p>
+              </div>
+              <div style={styles.cardBadge}>Booking Form</div>
+            </div>
 
             {formError && <div style={styles.errorBox}>{formError}</div>}
 
@@ -444,9 +496,7 @@ function BookingsPage() {
                   max={CAMPUS_CLOSE_TIME}
                   required
                 />
-                <small style={styles.helperText}>
-                  Allowed from 06:00 to 22:00
-                </small>
+                <small style={styles.helpText}>Allowed from 06:00 to 22:00</small>
               </div>
 
               <div style={styles.field}>
@@ -461,9 +511,7 @@ function BookingsPage() {
                   max={CAMPUS_CLOSE_TIME}
                   required
                 />
-                <small style={styles.helperText}>
-                  End time must be after start time
-                </small>
+                <small style={styles.helpText}>Must be after start time</small>
               </div>
 
               <div style={styles.field}>
@@ -480,8 +528,8 @@ function BookingsPage() {
                   required
                 />
                 {selectedFacility && (
-                  <small style={styles.helperText}>
-                    Maximum allowed: {selectedFacility.capacity}
+                  <small style={styles.helpText}>
+                    Max capacity: {selectedFacility.capacity}
                   </small>
                 )}
               </div>
@@ -502,7 +550,7 @@ function BookingsPage() {
               <div style={{ ...styles.field, gridColumn: "1 / -1" }}>
                 <button
                   type="submit"
-                  style={styles.primaryButton}
+                  style={styles.submitBtn}
                   disabled={submitting || loadingFacilities}
                 >
                   {submitting ? "Submitting..." : "Submit Booking Request"}
@@ -511,54 +559,133 @@ function BookingsPage() {
             </form>
           </div>
 
-          <div style={styles.sideInfoCard}>
-            <h3 style={styles.cardTitle}>Selected Facility Details</h3>
-
-            {loadingFacilities ? (
-              <p style={styles.infoText}>Loading facility details...</p>
-            ) : selectedFacility ? (
-              <div style={styles.detailsBox}>
-                <div style={styles.detailRow}>
-                  <strong>Name:</strong> {selectedFacility.name}
-                </div>
-                <div style={styles.detailRow}>
-                  <strong>Location:</strong> {selectedFacility.location || "N/A"}
-                </div>
-                <div style={styles.detailRow}>
-                  <strong>Type:</strong> {selectedFacility.type || "N/A"}
-                </div>
-                <div style={styles.detailRow}>
-                  <strong>Capacity:</strong> {selectedFacility.capacity}
-                </div>
-                <div style={styles.detailRow}>
-                  <strong>Status:</strong> {selectedFacility.status || "N/A"}
-                </div>
-                <div style={styles.detailRow}>
-                  <strong>Available:</strong>{" "}
-                  {selectedFacility.available ? "Yes" : "No"}
-                </div>
-                <div style={styles.detailRow}>
-                  <strong>Campus Hours:</strong> 6:00 AM - 10:00 PM
-                </div>
+          <div style={styles.rightColumn}>
+            <div style={styles.infoCard}>
+              <div style={styles.cardTopCompact}>
+                <h3 style={styles.infoCardTitle}>Selected Facility</h3>
+                {selectedFacility && <span style={styles.readyTag}>Selected</span>}
               </div>
-            ) : (
-              <p style={styles.infoText}>
-                Select a facility to see its details here.
-              </p>
-            )}
+
+              {loadingFacilities ? (
+                <p style={styles.emptyInfo}>Loading facility details...</p>
+              ) : selectedFacility ? (
+                <div style={styles.infoList}>
+                  <div style={styles.infoItem}>
+                    <span>Name</span>
+                    <strong>{selectedFacility.name}</strong>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span>Location</span>
+                    <strong>{selectedFacility.location || "N/A"}</strong>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span>Type</span>
+                    <strong>{selectedFacility.type || "N/A"}</strong>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span>Capacity</span>
+                    <strong>{selectedFacility.capacity}</strong>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span>Status</span>
+                    <strong>{selectedFacility.status || "N/A"}</strong>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span>Available</span>
+                    <strong>{selectedFacility.available ? "Yes" : "No"}</strong>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span>Campus Hours</span>
+                    <strong>6:00 AM - 10:00 PM</strong>
+                  </div>
+                </div>
+              ) : (
+                <p style={styles.emptyInfo}>
+                  Select a facility to see its details here.
+                </p>
+              )}
+            </div>
+
+            <div style={styles.ruleCard}>
+              <h3 style={styles.infoCardTitle}>Booking Rules</h3>
+              <div style={styles.ruleList}>
+                <div style={styles.ruleItem}>Past dates are not allowed</div>
+                <div style={styles.ruleItem}>Campus hours: 06:00 - 22:00</div>
+                <div style={styles.ruleItem}>Attendees must fit the capacity</div>
+                <div style={styles.ruleItem}>Only ACTIVE facilities can be booked</div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section style={styles.listSection}>
+        <section style={styles.availabilityCard}>
+          <div style={styles.cardTop}>
+            <div>
+              <h2 style={styles.cardTitle}>Smart Time Slot Suggestion</h2>
+              <p style={styles.cardDesc}>
+                Choose a facility and date to see booked and available slots.
+              </p>
+            </div>
+          </div>
+
+          {!form.facilityId || !form.bookingDate ? (
+            <div style={styles.placeholder}>
+              Select a facility and booking date to load availability.
+            </div>
+          ) : loadingAvailability ? (
+            <div style={styles.placeholder}>Loading time slot suggestions...</div>
+          ) : availabilityData ? (
+            <div style={styles.slotGrid}>
+              <div style={styles.slotCard}>
+                <h4 style={styles.slotTitle}>Booked Slots</h4>
+                {availabilityData.bookedSlots?.length > 0 ? (
+                  <div style={styles.slotWrap}>
+                    {availabilityData.bookedSlots.map((slot, index) => (
+                      <div key={index} style={styles.bookedSlot}>
+                        {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={styles.slotEmpty}>No booked slots for this date.</div>
+                )}
+              </div>
+
+              <div style={styles.slotCard}>
+                <h4 style={styles.slotTitle}>Available Slots</h4>
+                {availabilityData.availableSlots?.length > 0 ? (
+                  <div style={styles.slotWrap}>
+                    {availabilityData.availableSlots.map((slot, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        style={styles.availableSlot}
+                        onClick={() => handleUseTimeSlot(slot)}
+                      >
+                        {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={styles.slotEmpty}>No free slots available.</div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={styles.placeholder}>No availability data found.</div>
+          )}
+        </section>
+
+        <section style={styles.myBookingsSection}>
           <div style={styles.listHeader}>
             <div>
               <h2 style={styles.cardTitle}>My Bookings</h2>
-              <p style={styles.cardSubText}>
+              <p style={styles.cardDesc}>
                 View all booking requests created with your email address.
               </p>
             </div>
 
-            <div style={styles.emailFilterBox}>
+            <div style={styles.filterBox}>
               <input
                 type="email"
                 name="userEmail"
@@ -570,7 +697,7 @@ function BookingsPage() {
               <button
                 type="button"
                 onClick={handleRefreshMyBookings}
-                style={styles.secondaryButton}
+                style={styles.secondaryBtn}
               >
                 Load My Bookings
               </button>
@@ -578,11 +705,9 @@ function BookingsPage() {
           </div>
 
           {loadingBookings ? (
-            <div style={styles.loaderWrapper}>
-              <p style={styles.loadingText}>Loading your bookings...</p>
-            </div>
+            <div style={styles.placeholder}>Loading your bookings...</div>
           ) : myBookings.length === 0 ? (
-            <div style={styles.emptyBox}>
+            <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>📅</div>
               <h3 style={styles.emptyTitle}>No bookings found</h3>
               <p style={styles.emptyText}>
@@ -594,9 +719,14 @@ function BookingsPage() {
               {myBookings.map((booking) => (
                 <div key={booking.id} style={styles.bookingCard}>
                   <div style={styles.bookingCardTop}>
-                    <h3 style={styles.bookingCardTitle}>
-                      {booking.facility?.name || "Facility"}
-                    </h3>
+                    <div>
+                      <h3 style={styles.bookingTitle}>
+                        {booking.facility?.name || "Facility"}
+                      </h3>
+                      <p style={styles.bookingSubTitle}>
+                        {booking.facility?.location || "N/A"}
+                      </p>
+                    </div>
                     <span
                       style={{
                         ...styles.statusBadge,
@@ -607,38 +737,43 @@ function BookingsPage() {
                     </span>
                   </div>
 
-                  <div style={styles.infoRow}>
-                    <strong>Location:</strong>{" "}
-                    {booking.facility?.location || "N/A"}
+                  <div style={styles.bookingInfoGrid}>
+                    <div style={styles.bookingInfoItem}>
+                      <span>Date</span>
+                      <strong>{booking.bookingDate}</strong>
+                    </div>
+                    <div style={styles.bookingInfoItem}>
+                      <span>Time</span>
+                      <strong>
+                        {booking.startTime} - {booking.endTime}
+                      </strong>
+                    </div>
+                    <div style={styles.bookingInfoItem}>
+                      <span>Type</span>
+                      <strong>{booking.facility?.type || "N/A"}</strong>
+                    </div>
+                    <div style={styles.bookingInfoItem}>
+                      <span>Attendees</span>
+                      <strong>{booking.expectedAttendees}</strong>
+                    </div>
                   </div>
-                  <div style={styles.infoRow}>
-                    <strong>Type:</strong> {booking.facility?.type || "N/A"}
-                  </div>
-                  <div style={styles.infoRow}>
-                    <strong>Date:</strong> {booking.bookingDate}
-                  </div>
-                  <div style={styles.infoRow}>
-                    <strong>Time:</strong> {booking.startTime} - {booking.endTime}
-                  </div>
-                  <div style={styles.infoRow}>
-                    <strong>Purpose:</strong> {booking.purpose}
-                  </div>
-                  <div style={styles.infoRow}>
-                    <strong>Expected Attendees:</strong>{" "}
-                    {booking.expectedAttendees}
+
+                  <div style={styles.purposeCard}>
+                    <span style={styles.purposeLabel}>Purpose</span>
+                    <p style={styles.purposeValue}>{booking.purpose}</p>
                   </div>
 
                   {booking.adminReason && (
-                    <div style={styles.reasonBox}>
+                    <div style={styles.noteCard}>
                       <strong>Admin Note:</strong> {booking.adminReason}
                     </div>
                   )}
 
                   {String(booking.status).toUpperCase() === "APPROVED" && (
-                    <div style={styles.actionRow}>
+                    <div style={styles.cardActions}>
                       <button
                         type="button"
-                        style={styles.cancelButton}
+                        style={styles.cancelBtn}
                         onClick={() => handleCancelBooking(booking.id)}
                       >
                         Cancel Booking
@@ -660,91 +795,160 @@ function BookingsPage() {
 const styles = {
   page: {
     minHeight: "100vh",
-    backgroundColor: "#f5f6f8",
+    backgroundColor: "#f8fafc",
   },
   content: {
-    padding: "35px 50px 50px",
+    padding: "34px 48px 56px",
   },
-  topSection: {
+  headerCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
+    padding: "26px 28px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-start",
     gap: "24px",
     flexWrap: "wrap",
-    marginBottom: "28px",
+    marginBottom: "26px",
   },
-  sectionHeadingWrap: {
+  headerLeft: {
     flex: 1,
     minWidth: "280px",
   },
-  sectionTitle: {
-    color: "#1f2f6b",
+  smallTag: {
+    display: "inline-block",
+    backgroundColor: "#f8fafc",
+    color: "#1e3a8a",
+    border: "1px solid #dbeafe",
+    padding: "7px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "700",
+    marginBottom: "12px",
+  },
+  pageTitle: {
+    margin: "0 0 8px",
     fontSize: "32px",
-    marginBottom: "8px",
+    color: "#1e293b",
   },
-  sectionSubText: {
-    color: "#555",
-    lineHeight: "1.7",
-    maxWidth: "780px",
+  pageSubtitle: {
+    margin: 0,
+    color: "#64748b",
+    lineHeight: "1.8",
+    maxWidth: "760px",
   },
-  topStats: {
+  statsWrap: {
     display: "flex",
-    gap: "16px",
+    gap: "14px",
     flexWrap: "wrap",
+    alignItems: "stretch",
   },
-  statCard: {
-    minWidth: "180px",
-    backgroundColor: "#fff",
-    borderRadius: "16px",
-    padding: "20px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-    borderLeft: "5px solid #f4b400",
+  statBox: {
+    minWidth: "170px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "18px",
+    padding: "18px 20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
   },
-  statNumber: {
-    color: "#1f2f6b",
+  statTitle: {
+    color: "#64748b",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+  statValue: {
+    color: "#1e3a8a",
     fontSize: "30px",
-    fontWeight: "bold",
-    marginBottom: "6px",
+    fontWeight: "800",
   },
-  statLabel: {
-    color: "#555",
-    fontWeight: "600",
-  },
-  formSection: {
+  mainGrid: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 2fr) minmax(280px, 1fr)",
+    gridTemplateColumns: "minmax(0, 2fr) minmax(300px, 1fr)",
     gap: "24px",
-    marginBottom: "30px",
+    marginBottom: "24px",
+  },
+  rightColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
   },
   formCard: {
-    backgroundColor: "#fff",
-    borderRadius: "16px",
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
     padding: "24px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
   },
-  sideInfoCard: {
-    backgroundColor: "#fff",
-    borderRadius: "16px",
-    padding: "24px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-    height: "fit-content",
+  infoCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
+    padding: "22px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
   },
-  cardTitle: {
-    color: "#1f2f6b",
-    fontSize: "24px",
-    marginBottom: "8px",
+  ruleCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
+    padding: "22px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
   },
-  cardSubText: {
-    color: "#555",
-    lineHeight: "1.6",
+  cardTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
     marginBottom: "18px",
   },
+  cardTopCompact: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "16px",
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: "24px",
+    color: "#1e293b",
+  },
+  cardDesc: {
+    margin: "6px 0 0",
+    color: "#64748b",
+    lineHeight: "1.7",
+  },
+  cardBadge: {
+    padding: "8px 12px",
+    borderRadius: "999px",
+    backgroundColor: "#fefce8",
+    color: "#a16207",
+    fontSize: "12px",
+    fontWeight: "700",
+    border: "1px solid #fde68a",
+  },
+  infoCardTitle: {
+    margin: 0,
+    fontSize: "20px",
+    color: "#1e293b",
+  },
+  readyTag: {
+    padding: "7px 11px",
+    borderRadius: "999px",
+    backgroundColor: "#dcfce7",
+    color: "#166534",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
   errorBox: {
-    backgroundColor: "#fee2e2",
-    color: "#991b1b",
+    backgroundColor: "#fef2f2",
+    color: "#b91c1c",
     border: "1px solid #fecaca",
     padding: "12px 14px",
-    borderRadius: "10px",
+    borderRadius: "14px",
     marginBottom: "18px",
     fontWeight: "600",
   },
@@ -759,91 +963,176 @@ const styles = {
     gap: "8px",
   },
   label: {
-    color: "#37424a",
-    fontWeight: "bold",
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#334155",
   },
   input: {
     width: "100%",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    border: "1px solid #d1d5db",
+    padding: "13px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
     outline: "none",
     fontSize: "15px",
   },
   select: {
     width: "100%",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    border: "1px solid #d1d5db",
+    padding: "13px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
     outline: "none",
     fontSize: "15px",
-    backgroundColor: "#fff",
   },
   textarea: {
     width: "100%",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    border: "1px solid #d1d5db",
+    padding: "13px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
     outline: "none",
     fontSize: "15px",
     resize: "vertical",
     fontFamily: "inherit",
   },
-  helperText: {
-    color: "#64748b",
+  helpText: {
     fontSize: "12px",
+    color: "#64748b",
   },
-  primaryButton: {
-    backgroundColor: "#1f2f6b",
-    color: "#fff",
+  submitBtn: {
+    backgroundColor: "#1e3a8a",
+    color: "#ffffff",
     border: "none",
+    borderRadius: "14px",
     padding: "14px 18px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
     fontSize: "15px",
-  },
-  secondaryButton: {
-    backgroundColor: "#475569",
-    color: "#fff",
-    border: "none",
-    padding: "12px 18px",
-    borderRadius: "10px",
+    fontWeight: "700",
     cursor: "pointer",
-    fontWeight: "bold",
+  },
+  secondaryBtn: {
+    backgroundColor: "#334155",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "14px",
+    padding: "13px 18px",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
     whiteSpace: "nowrap",
   },
-  infoText: {
-    color: "#555",
+  emptyInfo: {
+    color: "#64748b",
+    margin: 0,
     lineHeight: "1.7",
   },
-  detailsBox: {
+  infoList: {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
   },
-  detailRow: {
-    color: "#37424a",
-    lineHeight: "1.6",
-    backgroundColor: "#f8fafc",
+  infoItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
     padding: "12px 14px",
-    borderRadius: "10px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    color: "#334155",
   },
-  listSection: {
-    backgroundColor: "#fff",
-    borderRadius: "16px",
+  ruleList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    marginTop: "14px",
+  },
+  ruleItem: {
+    backgroundColor: "#fffdf5",
+    border: "1px solid #fef3c7",
+    color: "#475569",
+    borderRadius: "14px",
+    padding: "12px 14px",
+    fontWeight: "600",
+  },
+  availabilityCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
     padding: "24px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
+    marginBottom: "24px",
+  },
+  placeholder: {
+    backgroundColor: "#f8fafc",
+    border: "1px dashed #cbd5e1",
+    borderRadius: "16px",
+    padding: "18px",
+    color: "#64748b",
+  },
+  slotGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "18px",
+  },
+  slotCard: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "18px",
+    padding: "18px",
+  },
+  slotTitle: {
+    margin: "0 0 14px",
+    fontSize: "18px",
+    color: "#1e293b",
+  },
+  slotWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+  },
+  bookedSlot: {
+    backgroundColor: "#fee2e2",
+    color: "#991b1b",
+    border: "1px solid #fecaca",
+    borderRadius: "999px",
+    padding: "10px 13px",
+    fontWeight: "700",
+    fontSize: "13px",
+  },
+  availableSlot: {
+    backgroundColor: "#ecfccb",
+    color: "#166534",
+    border: "1px solid #bbf7d0",
+    borderRadius: "999px",
+    padding: "10px 13px",
+    fontWeight: "700",
+    fontSize: "13px",
+    cursor: "pointer",
+  },
+  slotEmpty: {
+    backgroundColor: "#ffffff",
+    border: "1px dashed #d1d5db",
+    borderRadius: "14px",
+    padding: "14px",
+    color: "#64748b",
+  },
+  myBookingsSection: {
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
+    padding: "24px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
   },
   listHeader: {
     display: "flex",
     justifyContent: "space-between",
+    gap: "18px",
     alignItems: "flex-start",
-    gap: "20px",
     flexWrap: "wrap",
-    marginBottom: "24px",
+    marginBottom: "22px",
   },
-  emailFilterBox: {
+  filterBox: {
     display: "flex",
     gap: "12px",
     flexWrap: "wrap",
@@ -851,93 +1140,118 @@ const styles = {
     maxWidth: "520px",
     width: "100%",
   },
-  loaderWrapper: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: "40px 20px",
-    borderRadius: "14px",
-  },
-  loadingText: {
-    color: "#37424a",
-    fontWeight: "bold",
-  },
-  emptyBox: {
+  emptyState: {
     backgroundColor: "#f8fafc",
-    padding: "40px 30px",
-    borderRadius: "14px",
+    border: "1px dashed #cbd5e1",
+    borderRadius: "18px",
+    padding: "42px 24px",
     textAlign: "center",
   },
   emptyIcon: {
-    fontSize: "42px",
+    fontSize: "40px",
     marginBottom: "10px",
   },
   emptyTitle: {
-    color: "#1f2f6b",
-    marginBottom: "8px",
+    margin: "0 0 8px",
+    color: "#1e293b",
   },
   emptyText: {
-    color: "#555",
+    margin: 0,
+    color: "#64748b",
   },
   bookingGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: "20px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))",
+    gap: "18px",
   },
   bookingCard: {
-    backgroundColor: "#fff",
-    borderRadius: "14px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "20px",
     padding: "20px",
-    boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-    borderLeft: "5px solid #f4b400",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
   },
   bookingCardTop: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "16px",
+    gap: "14px",
+    alignItems: "flex-start",
     flexWrap: "wrap",
+    marginBottom: "16px",
   },
-  bookingCardTitle: {
-    color: "#1f2f6b",
-    fontSize: "22px",
+  bookingTitle: {
     margin: 0,
+    fontSize: "22px",
+    color: "#1e293b",
+  },
+  bookingSubTitle: {
+    margin: "5px 0 0",
+    color: "#64748b",
+    fontSize: "14px",
   },
   statusBadge: {
-    padding: "6px 12px",
+    padding: "7px 12px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
-  infoRow: {
-    marginBottom: "10px",
-    color: "#333",
-    fontSize: "15px",
-    lineHeight: "1.6",
+  bookingInfoGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "12px",
+    marginBottom: "16px",
   },
-  reasonBox: {
-    marginTop: "12px",
+  bookingInfoItem: {
     backgroundColor: "#f8fafc",
-    borderRadius: "10px",
-    padding: "12px 14px",
-    color: "#334155",
-    lineHeight: "1.6",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
   },
-  actionRow: {
+  purposeCard: {
+    backgroundColor: "#fffdf5",
+    border: "1px solid #fef3c7",
+    borderRadius: "14px",
+    padding: "14px",
+    marginBottom: "14px",
+  },
+  purposeLabel: {
+    display: "block",
+    fontSize: "12px",
+    color: "#64748b",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    marginBottom: "6px",
+  },
+  purposeValue: {
+    margin: 0,
+    color: "#475569",
+    lineHeight: "1.7",
+  },
+  noteCard: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "13px 14px",
+    color: "#334155",
+    lineHeight: "1.7",
+  },
+  cardActions: {
+    marginTop: "16px",
     display: "flex",
     gap: "10px",
-    marginTop: "18px",
   },
-  cancelButton: {
+  cancelBtn: {
     backgroundColor: "#dc2626",
-    color: "#fff",
+    color: "#ffffff",
     border: "none",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    borderRadius: "12px",
+    padding: "11px 15px",
+    fontWeight: "700",
     cursor: "pointer",
-    fontWeight: "bold",
   },
 };
 
