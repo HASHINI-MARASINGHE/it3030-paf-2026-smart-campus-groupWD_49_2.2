@@ -16,6 +16,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findAllByOrderByCreatedAtDesc();
 
+    List<Booking> findByFacilityIdAndBookingDateAndStatusInOrderByStartTimeAsc(
+            Long facilityId,
+            LocalDate bookingDate,
+            List<BookingStatus> statuses
+    );
+
     @Query("""
             SELECT b FROM Booking b
             WHERE b.facility.id = :facilityId

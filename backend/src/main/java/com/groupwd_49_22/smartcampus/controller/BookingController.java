@@ -1,5 +1,6 @@
 package com.groupwd_49_22.smartcampus.controller;
 
+import com.groupwd_49_22.smartcampus.dto.BookingAvailabilityResponse;
 import com.groupwd_49_22.smartcampus.dto.BookingRequest;
 import com.groupwd_49_22.smartcampus.dto.BookingReviewRequest;
 import com.groupwd_49_22.smartcampus.model.Booking;
@@ -43,6 +44,14 @@ public class BookingController {
     @GetMapping("/my-bookings")
     public ResponseEntity<List<Booking>> getMyBookings(@RequestParam String email) {
         return ResponseEntity.ok(bookingService.getMyBookings(email));
+    }
+
+    @GetMapping("/availability")
+    public ResponseEntity<BookingAvailabilityResponse> getBookingAvailability(
+            @RequestParam Long facilityId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate
+    ) {
+        return ResponseEntity.ok(bookingService.getBookingAvailability(facilityId, bookingDate));
     }
 
     @GetMapping("/{id}")

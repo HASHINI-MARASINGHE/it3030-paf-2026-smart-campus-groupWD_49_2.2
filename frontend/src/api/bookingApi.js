@@ -16,6 +16,11 @@ export const getMyBookings = (email) =>
     params: { email },
   });
 
+export const getBookingAvailability = (facilityId, bookingDate) =>
+  API.get("/availability", {
+    params: { facilityId, bookingDate },
+  });
+
 export const getBookingById = (id) => API.get(`/${id}`);
 
 export const reviewBooking = (id, reviewData) =>
