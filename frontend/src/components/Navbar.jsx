@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import logo from "../assets/logo.png";
 
 function Navbar() {
   const location = useLocation();
@@ -8,12 +9,16 @@ function Navbar() {
   return (
     <header style={styles.header}>
       <div style={styles.container}>
-        <div style={styles.brandSection}>
-          <Link to="/" style={styles.brandLink}>
-            <h1 style={styles.logo}>SLIIT Smart Campus</h1>
+        <Link to="/" style={styles.brandLink}>
+          <div style={styles.logoWrapper}>
+            <img src={logo} alt="Smart Campus Logo" style={styles.logoImage} />
+          </div>
+
+          <div style={styles.brandTextWrap}>
+            <h1 style={styles.logoText}>SLIIT Smart Campus</h1>
             <p style={styles.subtitle}>Operations Hub</p>
-          </Link>
-        </div>
+          </div>
+        </Link>
 
         <nav style={styles.nav}>
           <Link
@@ -24,6 +29,7 @@ function Navbar() {
             }}
           >
             Home
+            {isActive("/") && <span style={styles.navUnderline}></span>}
           </Link>
 
           <Link
@@ -34,6 +40,7 @@ function Navbar() {
             }}
           >
             About Us
+            {isActive("/about") && <span style={styles.navUnderline}></span>}
           </Link>
 
           <Link
@@ -44,6 +51,9 @@ function Navbar() {
             }}
           >
             Facilities
+            {isActive("/facilities") && (
+              <span style={styles.navUnderline}></span>
+            )}
           </Link>
 
           <Link to="/login" style={styles.loginBtn}>
@@ -57,74 +67,121 @@ function Navbar() {
 
 const styles = {
   header: {
+    width: "100%",
     position: "sticky",
     top: 0,
     zIndex: 1000,
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    background: "rgba(255, 255, 255, 0.96)",
     backdropFilter: "blur(10px)",
-    borderBottom: "1px solid #e5e7eb",
-    boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
+    borderBottom: "1px solid rgba(226, 232, 240, 0.9)",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
   },
+
   container: {
     maxWidth: "1400px",
     margin: "0 auto",
-    padding: "18px 50px",
+    padding: "16px 36px",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    gap: "18px",
+    justifyContent: "space-between",
+    gap: "24px",
     flexWrap: "wrap",
   },
-  brandSection: {
+
+  brandLink: {
     display: "flex",
     alignItems: "center",
-  },
-  brandLink: {
+    gap: "16px",
     textDecoration: "none",
+    minWidth: "fit-content",
   },
-  logo: {
-    color: "#1e3a8a",
-    fontSize: "36px",
-    fontWeight: "800",
+
+  logoWrapper: {
+    width: "74px",
+    height: "74px",
+    borderRadius: "18px",
+    background: "linear-gradient(145deg, #ffffff, #f8fafc)",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  logoImage: {
+    width: "96px",
+    height: "96px",
+    objectFit: "contain",
+    transform: "scale(1.35)",
+    display: "block",
+  },
+
+  brandTextWrap: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+  },
+
+  logoText: {
     margin: 0,
-    letterSpacing: "-0.5px",
-    lineHeight: 1.1,
+    color: "#1e3a8a",
+    fontSize: "28px",
+    fontWeight: "800",
+    lineHeight: "1.05",
+    letterSpacing: "-0.4px",
   },
+
   subtitle: {
+    margin: "6px 0 0 0",
     color: "#64748b",
-    marginTop: "6px",
-    marginBottom: 0,
-    fontSize: "16px",
-    fontWeight: "500",
+    fontSize: "14px",
+    fontWeight: "600",
+    letterSpacing: "0.2px",
   },
+
   nav: {
     display: "flex",
-    gap: "14px",
     alignItems: "center",
+    gap: "28px",
     flexWrap: "wrap",
   },
+
   navLink: {
-    fontWeight: "700",
-    color: "#334155",
+    position: "relative",
     textDecoration: "none",
-    padding: "12px 18px",
-    borderRadius: "12px",
-    transition: "all 0.2s ease",
+    color: "#475569",
+    fontWeight: "700",
     fontSize: "16px",
+    padding: "8px 0",
+    transition: "all 0.25s ease",
   },
+
   activeNavLink: {
-    backgroundColor: "#eef2ff",
     color: "#1e3a8a",
-    boxShadow: "inset 0 0 0 1px #c7d2fe",
   },
+
+  navUnderline: {
+    position: "absolute",
+    left: 0,
+    bottom: "-6px",
+    width: "100%",
+    height: "3px",
+    borderRadius: "999px",
+    background: "linear-gradient(90deg, #1e3a8a, #3b82f6)",
+  },
+
   loginBtn: {
-    background: "linear-gradient(135deg, #1e3a8a, #1f2f6b)",
-    color: "#fff",
-    padding: "12px 22px",
-    borderRadius: "12px",
-    fontWeight: "700",
     textDecoration: "none",
-    boxShadow: "0 8px 18px rgba(31, 47, 107, 0.22)",
+    background: "linear-gradient(135deg, #1e3a8a, #1f2f6b)",
+    color: "#ffffff",
+    fontWeight: "800",
+    fontSize: "16px",
+    padding: "12px 22px",
+    borderRadius: "14px",
+    boxShadow: "0 10px 18px rgba(30, 58, 138, 0.22)",
+    marginLeft: "4px",
   },
 };
 
