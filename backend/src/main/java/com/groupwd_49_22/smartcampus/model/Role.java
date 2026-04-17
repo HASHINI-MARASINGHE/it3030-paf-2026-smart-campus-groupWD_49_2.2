@@ -1,9 +1,9 @@
 package com.groupwd_49_22.smartcampus.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 @Entity
 @Table(name = "roles")
@@ -11,12 +11,13 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Role {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role_name", unique = true, nullable = false)
+    @Column(name = "role_name", unique = true, nullable = false, length = 30)
     private ERole roleName;
 
     public Role(ERole roleName) {

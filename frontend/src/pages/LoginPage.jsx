@@ -1,48 +1,51 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { GoogleLogin } from '@react-oauth/google';
-import '../styles/AuthPages.css';
+import { useMemo, useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, googleLogin } = useAuth();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const googleClientEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const redirectPath = useMemo(() => location.state?.from?.pathname || "/facilities", [location.state]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/');
+      await login(email.trim(), password);
+      navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(err.error || err.message || 'Login failed');
+      setError(err.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
+    setError("");
+    setLoading(true);
+
     try {
-      setLoading(true);
-      // Decode JWT response
-      const decoded = JSON.parse(atob(credentialResponse.credential.split('.')[1]));
-      await googleLogin(decoded);
-      navigate('/');
+      if (!credentialResponse?.credential) {
+        throw new Error("Google credential is missing");
+      }
+
+      await googleLogin(credentialResponse.credential);
+      navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError('Google login failed');
+      setError(err.message || "Google login failed");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleError = () => {
-    setError('Google login failed');
   };
 
   return (
@@ -51,7 +54,7 @@ const LoginPage = () => {
         <div style={styles.leftContent}>
           <h1 style={styles.brand}>SLIIT Smart Campus</h1>
           <p style={styles.text}>
-            Sign in with your university account to access facilities and resources.
+            Sign in to book campus facilities and continue your work safely.
           </p>
           <Link to="/" style={styles.backLink}>
             ← Back to Home
@@ -63,14 +66,14 @@ const LoginPage = () => {
         <form style={styles.form} onSubmit={handleSubmit}>
           <h2 style={styles.formTitle}>Login</h2>
 
-          {error && <div style={styles.errorMessage}>{error}</div>}
+          {error ? <div style={styles.errorMessage}>{error}</div> : null}
 
           <label style={styles.label}>Email</label>
           <input
             type="email"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             style={styles.input}
             required
             disabled={loading}
@@ -81,28 +84,32 @@ const LoginPage = () => {
             type="password"
             placeholder="Enter your password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             style={styles.input}
             required
             disabled={loading}
           />
 
           <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? "Logging in..." : "Login"}
           </button>
 
-          <div style={styles.divider}>OR</div>
-
-          <div style={styles.googleLogin}>
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              size="large"
-            />
-          </div>
+          {googleClientEnabled ? (
+            <>
+              <div style={styles.divider}>OR</div>
+              <div style={styles.googleLogin}>
+                <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError("Google login failed")} />
+              </div>
+            </>
+          ) : (
+            <p style={styles.helperText}>Google login will appear after you set VITE_GOOGLE_CLIENT_ID.</p>
+          )}
 
           <p style={styles.footer}>
-            Don't have an account? <Link to="/register" style={styles.link}>Register here</Link>
+            Don&apos;t have an account?{" "}
+            <Link to="/register" style={styles.link}>
+              Register here
+            </Link>
           </p>
         </form>
       </div>
@@ -202,6 +209,12 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     marginTop: "15px",
+  },
+  helperText: {
+    marginTop: "16px",
+    fontSize: "14px",
+    color: "#6b7280",
+    textAlign: "center",
   },
   footer: {
     textAlign: "center",

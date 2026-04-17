@@ -1,54 +1,67 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authService } from '../api/authApi';
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { authService } from "../api/authApi";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+const normalizeRoles = (roles) => {
+  if (Array.isArray(roles)) return roles;
+  if (roles && typeof roles === "object") return Object.values(roles);
+  return [];
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Initialize from localStorage
   useEffect(() => {
-    const storedUser = authService.getCurrentUser();
-    if (storedUser && authService.isAuthenticated()) {
-      setUser(storedUser);
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    const bootstrapAuth = async () => {
+      try {
+        const storedUser = authService.getCurrentUser();
+
+        if (!authService.isAuthenticated()) {
+          setUser(storedUser);
+          setIsAuthenticated(false);
+          return;
+        }
+
+        const profile = await authService.fetchCurrentUser();
+        setUser({ ...profile, roles: normalizeRoles(profile.roles) });
+        setIsAuthenticated(true);
+      } catch (error) {
+        authService.logout();
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    bootstrapAuth();
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const response = await authService.login(email, password);
-      setUser(response);
-      setIsAuthenticated(true);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await authService.login(email, password);
+    const normalized = { ...response, roles: normalizeRoles(response.roles) };
+    setUser(normalized);
+    setIsAuthenticated(true);
+    return normalized;
   };
 
   const register = async (username, email, password, fullName) => {
-    try {
-      const response = await authService.register(username, email, password, fullName);
-      setUser(response);
-      setIsAuthenticated(true);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await authService.register(username, email, password, fullName);
+    const normalized = { ...response, roles: normalizeRoles(response.roles) };
+    setUser(normalized);
+    setIsAuthenticated(true);
+    return normalized;
   };
 
-  const googleLogin = async (googleResponse) => {
-    try {
-      const response = await authService.googleLogin(googleResponse);
-      setUser(response);
-      setIsAuthenticated(true);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  const googleLogin = async (credential) => {
+    const response = await authService.googleLogin(credential);
+    const normalized = { ...response, roles: normalizeRoles(response.roles) };
+    setUser(normalized);
+    setIsAuthenticated(true);
+    return normalized;
   };
 
   const logout = () => {
@@ -57,39 +70,31 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  const hasRole = (role) => {
-    if (!user || !user.roles) return false;
-    return user.roles.includes(role);
-  };
+  const hasRole = (role) => normalizeRoles(user?.roles).includes(role);
+  const hasAnyRole = (roles) => roles.some((role) => hasRole(role));
 
-  const hasAnyRole = (roles) => {
-    if (!user || !user.roles) return false;
-    return roles.some(role => user.roles.includes(role));
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated,
-        login,
-        register,
-        googleLogin,
-        logout,
-        hasRole,
-        hasAnyRole
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated,
+      login,
+      register,
+      googleLogin,
+      logout,
+      hasRole,
+      hasAnyRole,
+    }),
+    [user, loading, isAuthenticated]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };
