@@ -56,6 +56,16 @@ function Navbar() {
             )}
           </Link>
 
+          <Link
+            to="/report-ticket"
+            style={{
+              ...styles.navLink,
+              ...(isActive("/report-ticket") ? styles.activeNavLink : {}),
+            }}
+          >
+            Report Issue
+          </Link>
+
           <Link to="/login" style={styles.loginBtn}>
             Login
           </Link>
