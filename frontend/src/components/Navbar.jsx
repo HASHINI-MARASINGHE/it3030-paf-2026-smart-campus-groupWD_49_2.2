@@ -64,6 +64,9 @@ function Navbar() {
             }}
           >
             Report Issue
+            {isActive("/report-ticket") && (
+              <span style={styles.navUnderline}></span>
+            )}
           </Link>
 
           <Link to="/login" style={styles.loginBtn}>
@@ -107,24 +110,24 @@ const styles = {
   },
 
   logoWrapper: {
-    width: "74px",
-    height: "74px",
+    width: "90px",
+    height: "90px",
     borderRadius: "18px",
-    background: "linear-gradient(145deg, #ffffff, #f8fafc)",
+    background: "#ffffff",
     border: "1px solid #e2e8f0",
     boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
-    overflow: "hidden",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    padding: "8px",
+    overflow: "visible",
   },
 
   logoImage: {
-    width: "96px",
-    height: "96px",
+    width: "100%",
+    height: "100%",
     objectFit: "contain",
-    transform: "scale(1.35)",
     display: "block",
   },
 

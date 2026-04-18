@@ -43,7 +43,7 @@ function AddFacilityPage() {
   };
 
   return (
-    <div>
+    <div style={styles.page}>
       <Toast
         message={message}
         type={messageType}
@@ -59,17 +59,28 @@ function AddFacilityPage() {
 
       <div style={styles.headerBox}>
         <h2 style={styles.heading}>Add New Facility</h2>
-        <p style={styles.subText}>Create a new campus facility or resource.</p>
+        <p style={styles.subText}>
+          Create a new campus facility or resource.
+        </p>
       </div>
 
       <div style={styles.formWrapper}>
-        <FacilityForm onSubmit={handleAddFacility} buttonText="Add Facility" />
+        <div style={styles.formContainer}>
+          <FacilityForm
+            onSubmit={handleAddFacility}
+            buttonText="Add Facility"
+          />
+        </div>
       </div>
     </div>
   );
 }
 
 const styles = {
+  page: {
+    padding: "20px 30px",
+  },
+
   backLink: {
     display: "inline-block",
     marginBottom: "16px",
@@ -77,20 +88,36 @@ const styles = {
     fontWeight: "bold",
     textDecoration: "none",
   },
+
   headerBox: {
     marginBottom: "10px",
   },
+
   heading: {
     color: "#1f2f6b",
     marginBottom: "6px",
     fontSize: "30px",
+    fontWeight: "700",
   },
+
   subText: {
     color: "#555",
     fontSize: "16px",
   },
+
   formWrapper: {
-    marginTop: "20px",
+    marginTop: "25px",
+    display: "flex",
+    justifyContent: "center",
+  },
+
+  formContainer: {
+    width: "100%",
+    maxWidth: "700px",
+    background: "#ffffff",
+    padding: "30px",
+    borderRadius: "12px",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
   },
 };
 
