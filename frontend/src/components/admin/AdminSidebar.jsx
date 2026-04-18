@@ -9,6 +9,7 @@ function AdminSidebar() {
     location.pathname.startsWith("/admin/facilities/edit/");
 
   const isBookingsActive = location.pathname === "/admin/bookings";
+  const isTicketsActive = location.pathname === "/admin/tickets";
 
   return (
     <aside style={styles.sidebar}>
@@ -57,6 +58,16 @@ function AdminSidebar() {
           })}
         >
           Bookings
+        </NavLink>
+
+        <NavLink
+          to="/admin/tickets"
+          style={() => ({
+            ...styles.link,
+            ...(isTicketsActive ? styles.activeLink : {}),
+          })}
+        >
+          Tickets
         </NavLink>
       </nav>
     </aside>
