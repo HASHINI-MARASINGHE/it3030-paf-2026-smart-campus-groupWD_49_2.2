@@ -70,6 +70,7 @@ function BookingsPage() {
   const [facilities, setFacilities] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [availabilityData, setAvailabilityData] = useState(null);
+
   const [loadingFacilities, setLoadingFacilities] = useState(true);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
@@ -78,6 +79,7 @@ function BookingsPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
   const [formError, setFormError] = useState("");
+  const [summaryBox, setSummaryBox] = useState(null);
 
   const [form, setForm] = useState({
     facilityId: "",
@@ -88,6 +90,8 @@ function BookingsPage() {
     endTime: "",
     purpose: "",
     expectedAttendees: "",
+    repeatType: "NONE",
+    repeatCount: "",
   });
 
   const showMessage = (text, type = "success") => {
@@ -190,6 +194,38 @@ function BookingsPage() {
     [facilities, form.facilityId]
   );
 
+  const bookingPreviewDates = useMemo(() => {
+    if (!form.bookingDate) return [];
+
+    const count =
+      form.repeatType === "NONE" ? 1 : Number(form.repeatCount || 0);
+
+    if (form.repeatType !== "NONE" && (count < 2 || count > 12)) {
+      return [];
+    }
+
+    const baseDate = new Date(form.bookingDate);
+    const list = [];
+
+    for (let i = 0; i < count; i++) {
+      const date = new Date(baseDate);
+
+      if (form.repeatType === "WEEKLY") {
+        date.setDate(baseDate.getDate() + i * 7);
+      } else if (form.repeatType === "MONTHLY") {
+        date.setMonth(baseDate.getMonth() + i);
+      }
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+
+      list.push(`${year}-${month}-${day}`);
+    }
+
+    return list;
+  }, [form.bookingDate, form.repeatType, form.repeatCount]);
+
   const validateForm = () => {
     if (!form.facilityId) {
       return "Please select a facility.";
@@ -253,12 +289,24 @@ function BookingsPage() {
       }
     }
 
+    if (form.repeatType !== "NONE") {
+      if (!form.repeatCount || Number(form.repeatCount) < 2) {
+        return "Number of bookings must be at least 2.";
+      }
+
+      if (Number(form.repeatCount) > 12) {
+        return "Number of bookings cannot exceed 12.";
+      }
+    }
+
     return "";
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormError("");
+    setSummaryBox(null);
 
     setForm((prev) => ({
       ...prev,
@@ -290,8 +338,9 @@ function BookingsPage() {
     try {
       setSubmitting(true);
       setFormError("");
+      setSummaryBox(null);
 
-      await createBooking({
+      const response = await createBooking({
         facilityId: Number(form.facilityId),
         userName: form.userName.trim(),
         userEmail: form.userEmail.trim(),
@@ -300,9 +349,14 @@ function BookingsPage() {
         endTime: `${form.endTime}:00`,
         purpose: form.purpose.trim(),
         expectedAttendees: Number(form.expectedAttendees),
+        recurrenceType: form.repeatType,
+        repeatCount: form.repeatType === "NONE" ? null : Number(form.repeatCount),
       });
 
-      showMessage("Booking request submitted successfully.", "success");
+      const result = response.data;
+      setSummaryBox(result);
+
+      showMessage(result?.message || "Booking request submitted successfully.", "success");
 
       setForm((prev) => ({
         ...prev,
@@ -311,6 +365,8 @@ function BookingsPage() {
         endTime: "",
         purpose: "",
         expectedAttendees: "",
+        repeatType: "NONE",
+        repeatCount: "",
       }));
 
       setAvailabilityData(null);
@@ -318,8 +374,13 @@ function BookingsPage() {
     } catch (error) {
       console.error("Error creating booking:", error);
 
+      const responseData = error?.response?.data;
       const backendMessage =
-        error?.response?.data?.message || "Failed to create booking.";
+        responseData?.message || "Failed to create booking.";
+
+      if (responseData) {
+        setSummaryBox(responseData);
+      }
 
       setFormError(backendMessage);
       showMessage(backendMessage, "error");
@@ -382,6 +443,18 @@ function BookingsPage() {
     };
   };
 
+  const getRepeatText = (booking) => {
+    const type = String(booking?.recurrenceType || "NONE").toUpperCase();
+
+    if (type === "NONE" || Number(booking?.totalOccurrences || 1) <= 1) {
+      return "One-time booking";
+    }
+
+    return `${type === "WEEKLY" ? "Repeats weekly" : "Repeats monthly"} • Booking ${
+      booking.occurrenceNumber
+    } of ${booking.totalOccurrences}`;
+  };
+
   return (
     <div style={styles.page}>
       <Navbar />
@@ -390,23 +463,23 @@ function BookingsPage() {
 
       <main style={styles.content}>
         <section style={styles.headerCard}>
-          <div style={styles.headerLeft}>
+          <div>
             <div style={styles.smallTag}>Smart Campus Operations Hub</div>
             <h1 style={styles.pageTitle}>Booking Management</h1>
             <p style={styles.pageSubtitle}>
-              Create booking requests, check suggested free time slots, and
-              manage your bookings in one clean place.
+              Create one-time or repeat bookings, check available time slots,
+              and manage your requests in one place.
             </p>
           </div>
 
-          <div style={styles.statsWrap}>
-            <div style={styles.statBox}>
-              <span style={styles.statTitle}>Bookable Facilities</span>
-              <span style={styles.statValue}>{facilities.length}</span>
+          <div style={styles.topStats}>
+            <div style={styles.statCard}>
+              <span style={styles.statLabel}>Bookable Facilities</span>
+              <span style={styles.statNumber}>{facilities.length}</span>
             </div>
-            <div style={styles.statBox}>
-              <span style={styles.statTitle}>My Bookings</span>
-              <span style={styles.statValue}>{myBookings.length}</span>
+            <div style={styles.statCard}>
+              <span style={styles.statLabel}>My Bookings</span>
+              <span style={styles.statNumber}>{myBookings.length}</span>
             </div>
           </div>
         </section>
@@ -417,11 +490,11 @@ function BookingsPage() {
               <div>
                 <h2 style={styles.cardTitle}>Request a New Booking</h2>
                 <p style={styles.cardDesc}>
-                  Allowed booking hours are <strong>6:00 AM</strong> to{" "}
-                  <strong>10:00 PM</strong>.
+                  For repeat bookings, choose weekly or monthly and enter how
+                  many bookings you need.
                 </p>
               </div>
-              <div style={styles.cardBadge}>Booking Form</div>
+              <div style={styles.cardBadge}>Simple Form</div>
             </div>
 
             {formError && <div style={styles.errorBox}>{formError}</div>}
@@ -534,6 +607,38 @@ function BookingsPage() {
                 )}
               </div>
 
+              <div style={styles.field}>
+                <label style={styles.label}>Repeat Booking</label>
+                <select
+                  name="repeatType"
+                  value={form.repeatType}
+                  onChange={handleChange}
+                  style={styles.select}
+                >
+                  <option value="NONE">No</option>
+                  <option value="WEEKLY">Yes - Weekly</option>
+                  <option value="MONTHLY">Yes - Monthly</option>
+                </select>
+              </div>
+
+              <div style={styles.field}>
+                <label style={styles.label}>Number of Bookings</label>
+                <input
+                  type="number"
+                  name="repeatCount"
+                  value={form.repeatCount}
+                  onChange={handleChange}
+                  style={styles.input}
+                  placeholder="Example: 4"
+                  min="2"
+                  max="12"
+                  disabled={form.repeatType === "NONE"}
+                />
+                <small style={styles.helpText}>
+                  Use 2 to 12 when repeat booking is enabled
+                </small>
+              </div>
+
               <div style={{ ...styles.field, gridColumn: "1 / -1" }}>
                 <label style={styles.label}>Purpose</label>
                 <textarea
@@ -557,9 +662,52 @@ function BookingsPage() {
                 </button>
               </div>
             </form>
+
+            {form.repeatType !== "NONE" && bookingPreviewDates.length > 0 && (
+              <div style={styles.previewBox}>
+                <h4 style={styles.previewTitle}>Booking Preview</h4>
+                <div style={styles.previewWrap}>
+                  {bookingPreviewDates.map((date, index) => (
+                    <div key={date} style={styles.previewItem}>
+                      Booking {index + 1}: {date}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {summaryBox && (
+              <div style={styles.summaryBox}>
+                <h4 style={styles.summaryTitle}>Result</h4>
+                <div style={styles.summaryGrid}>
+                  <div style={styles.summaryItem}>
+                    <span>Requested</span>
+                    <strong>{summaryBox.totalRequested || 0}</strong>
+                  </div>
+                  <div style={styles.summaryItem}>
+                    <span>Created</span>
+                    <strong>{summaryBox.createdCount || 0}</strong>
+                  </div>
+                  <div style={styles.summaryItem}>
+                    <span>Skipped</span>
+                    <strong>{summaryBox.skippedCount || 0}</strong>
+                  </div>
+                </div>
+
+                {summaryBox.skippedOccurrences?.length > 0 && (
+                  <div style={styles.skippedList}>
+                    {summaryBox.skippedOccurrences.map((item, index) => (
+                      <div key={index} style={styles.skippedItem}>
+                        <strong>{item.bookingDate}</strong> ({formatTime(item.startTime)} - {formatTime(item.endTime)}) - {item.reason}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div style={styles.rightColumn}>
+          <div style={styles.sideColumn}>
             <div style={styles.infoCard}>
               <div style={styles.cardTopCompact}>
                 <h3 style={styles.infoCardTitle}>Selected Facility</h3>
@@ -594,10 +742,6 @@ function BookingsPage() {
                     <span>Available</span>
                     <strong>{selectedFacility.available ? "Yes" : "No"}</strong>
                   </div>
-                  <div style={styles.infoItem}>
-                    <span>Campus Hours</span>
-                    <strong>6:00 AM - 10:00 PM</strong>
-                  </div>
                 </div>
               ) : (
                 <p style={styles.emptyInfo}>
@@ -607,12 +751,19 @@ function BookingsPage() {
             </div>
 
             <div style={styles.ruleCard}>
-              <h3 style={styles.infoCardTitle}>Booking Rules</h3>
+              <h3 style={styles.infoCardTitle}>Examples</h3>
               <div style={styles.ruleList}>
-                <div style={styles.ruleItem}>Past dates are not allowed</div>
-                <div style={styles.ruleItem}>Campus hours: 06:00 - 22:00</div>
-                <div style={styles.ruleItem}>Attendees must fit the capacity</div>
-                <div style={styles.ruleItem}>Only ACTIVE facilities can be booked</div>
+                <div style={styles.ruleItem}>
+                  Monthly: choose <strong>2026-05-08</strong> and select{" "}
+                  <strong>Yes - Monthly</strong>.
+                </div>
+                <div style={styles.ruleItem}>
+                  Weekly: choose a <strong>Wednesday</strong> and select{" "}
+                  <strong>Yes - Weekly</strong>.
+                </div>
+                <div style={styles.ruleItem}>
+                  Each booking is checked for conflicts and booking rules.
+                </div>
               </div>
             </div>
           </div>
@@ -621,9 +772,9 @@ function BookingsPage() {
         <section style={styles.availabilityCard}>
           <div style={styles.cardTop}>
             <div>
-              <h2 style={styles.cardTitle}>Smart Time Slot Suggestion</h2>
+              <h2 style={styles.cardTitle}>Available Time Slots</h2>
               <p style={styles.cardDesc}>
-                Choose a facility and date to see booked and available slots.
+                Choose a facility and date to see booked and free time slots.
               </p>
             </div>
           </div>
@@ -652,7 +803,7 @@ function BookingsPage() {
               </div>
 
               <div style={styles.slotCard}>
-                <h4 style={styles.slotTitle}>Available Slots</h4>
+                <h4 style={styles.slotTitle}>Free Slots</h4>
                 {availabilityData.availableSlots?.length > 0 ? (
                   <div style={styles.slotWrap}>
                     {availabilityData.availableSlots.map((slot, index) => (
@@ -737,6 +888,8 @@ function BookingsPage() {
                     </span>
                   </div>
 
+                  <div style={styles.repeatTag}>{getRepeatText(booking)}</div>
+
                   <div style={styles.bookingInfoGrid}>
                     <div style={styles.bookingInfoItem}>
                       <span>Date</span>
@@ -812,10 +965,6 @@ const styles = {
     flexWrap: "wrap",
     marginBottom: "26px",
   },
-  headerLeft: {
-    flex: 1,
-    minWidth: "280px",
-  },
   smallTag: {
     display: "inline-block",
     backgroundColor: "#f8fafc",
@@ -838,13 +987,13 @@ const styles = {
     lineHeight: "1.8",
     maxWidth: "760px",
   },
-  statsWrap: {
+  topStats: {
     display: "flex",
     gap: "14px",
     flexWrap: "wrap",
     alignItems: "stretch",
   },
-  statBox: {
+  statCard: {
     minWidth: "170px",
     backgroundColor: "#f8fafc",
     border: "1px solid #e2e8f0",
@@ -854,12 +1003,12 @@ const styles = {
     flexDirection: "column",
     gap: "6px",
   },
-  statTitle: {
+  statLabel: {
     color: "#64748b",
     fontSize: "13px",
     fontWeight: "700",
   },
-  statValue: {
+  statNumber: {
     color: "#1e3a8a",
     fontSize: "30px",
     fontWeight: "800",
@@ -870,7 +1019,7 @@ const styles = {
     gap: "24px",
     marginBottom: "24px",
   },
-  rightColumn: {
+  sideColumn: {
     display: "flex",
     flexDirection: "column",
     gap: "18px",
@@ -1010,16 +1159,71 @@ const styles = {
     fontWeight: "700",
     cursor: "pointer",
   },
-  secondaryBtn: {
-    backgroundColor: "#334155",
-    color: "#ffffff",
-    border: "none",
+  summaryBox: {
+    marginTop: "20px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
+    padding: "16px",
+  },
+  summaryTitle: {
+    margin: "0 0 14px",
+    color: "#1e293b",
+  },
+  summaryGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "12px",
+  },
+  summaryItem: {
+    backgroundColor: "#ffffff",
+    border: "1px solid #e2e8f0",
     borderRadius: "14px",
-    padding: "13px 18px",
-    fontSize: "14px",
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    color: "#475569",
+  },
+  previewBox: {
+    marginTop: "20px",
+    backgroundColor: "#fffdf5",
+    border: "1px solid #fef3c7",
+    borderRadius: "16px",
+    padding: "16px",
+  },
+  previewTitle: {
+    margin: "0 0 12px",
+    color: "#1e293b",
+  },
+  previewWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+  },
+  previewItem: {
+    backgroundColor: "#ffffff",
+    border: "1px solid #fde68a",
+    borderRadius: "999px",
+    padding: "9px 12px",
+    color: "#92400e",
+    fontSize: "13px",
     fontWeight: "700",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
+  },
+  skippedList: {
+    marginTop: "14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+  skippedItem: {
+    backgroundColor: "#fff7ed",
+    border: "1px solid #fdba74",
+    color: "#9a3412",
+    borderRadius: "12px",
+    padding: "10px 12px",
+    fontSize: "14px",
+    lineHeight: "1.6",
   },
   emptyInfo: {
     color: "#64748b",
@@ -1054,6 +1258,7 @@ const styles = {
     borderRadius: "14px",
     padding: "12px 14px",
     fontWeight: "600",
+    lineHeight: "1.7",
   },
   availabilityCard: {
     backgroundColor: "#ffffff",
@@ -1140,6 +1345,17 @@ const styles = {
     maxWidth: "520px",
     width: "100%",
   },
+  secondaryBtn: {
+    backgroundColor: "#334155",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "14px",
+    padding: "13px 18px",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
   emptyState: {
     backgroundColor: "#f8fafc",
     border: "1px dashed #cbd5e1",
@@ -1188,6 +1404,17 @@ const styles = {
     margin: "5px 0 0",
     color: "#64748b",
     fontSize: "14px",
+  },
+  repeatTag: {
+    display: "inline-block",
+    marginBottom: "14px",
+    backgroundColor: "#eff6ff",
+    color: "#1e3a8a",
+    border: "1px solid #bfdbfe",
+    borderRadius: "999px",
+    padding: "7px 12px",
+    fontSize: "12px",
+    fontWeight: "700",
   },
   statusBadge: {
     padding: "7px 12px",

@@ -1,7 +1,9 @@
 package com.groupwd_49_22.smartcampus.dto;
 
+import com.groupwd_49_22.smartcampus.model.RecurrenceType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +40,12 @@ public class BookingRequest {
     @Min(value = 1, message = "Expected attendees must be at least 1")
     private Integer expectedAttendees;
 
+    private RecurrenceType recurrenceType = RecurrenceType.NONE;
+
+    @Min(value = 2, message = "Repeat count must be at least 2")
+    @Max(value = 12, message = "Repeat count cannot exceed 12")
+    private Integer repeatCount;
+
     public BookingRequest() {
     }
 
@@ -73,6 +81,14 @@ public class BookingRequest {
         return expectedAttendees;
     }
 
+    public RecurrenceType getRecurrenceType() {
+        return recurrenceType;
+    }
+
+    public Integer getRepeatCount() {
+        return repeatCount;
+    }
+
     public void setFacilityId(Long facilityId) {
         this.facilityId = facilityId;
     }
@@ -103,5 +119,13 @@ public class BookingRequest {
 
     public void setExpectedAttendees(Integer expectedAttendees) {
         this.expectedAttendees = expectedAttendees;
+    }
+
+    public void setRecurrenceType(RecurrenceType recurrenceType) {
+        this.recurrenceType = recurrenceType;
+    }
+
+    public void setRepeatCount(Integer repeatCount) {
+        this.repeatCount = repeatCount;
     }
 }

@@ -3,11 +3,14 @@ package com.groupwd_49_22.smartcampus.service;
 import com.groupwd_49_22.smartcampus.dto.BookingAvailabilityResponse;
 import com.groupwd_49_22.smartcampus.dto.BookingRequest;
 import com.groupwd_49_22.smartcampus.dto.BookingReviewRequest;
+import com.groupwd_49_22.smartcampus.dto.RecurringBookingResponse;
+import com.groupwd_49_22.smartcampus.dto.SkippedOccurrenceDto;
 import com.groupwd_49_22.smartcampus.dto.TimeSlotDto;
 import com.groupwd_49_22.smartcampus.exception.ResourceNotFoundException;
 import com.groupwd_49_22.smartcampus.model.Booking;
 import com.groupwd_49_22.smartcampus.model.BookingStatus;
 import com.groupwd_49_22.smartcampus.model.Facility;
+import com.groupwd_49_22.smartcampus.model.RecurrenceType;
 import com.groupwd_49_22.smartcampus.repository.BookingRepository;
 import com.groupwd_49_22.smartcampus.repository.FacilityRepository;
 import org.springframework.http.HttpStatus;
@@ -20,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,8 +40,7 @@ public class BookingService {
         this.facilityRepository = facilityRepository;
     }
 
-    public Booking createBooking(BookingRequest request) {
-        validateBookingDate(request.getBookingDate());
+    public RecurringBookingResponse createBooking(BookingRequest request) {
         validateTimeRange(request.getStartTime(), request.getEndTime());
 
         Facility facility = facilityRepository.findById(request.getFacilityId())
@@ -45,34 +48,96 @@ public class BookingService {
 
         validateFacilityForBooking(facility, request.getExpectedAttendees());
 
-        List<Booking> conflicts = bookingRepository.findConflictingBookings(
-                facility.getId(),
-                request.getBookingDate(),
-                request.getStartTime(),
-                request.getEndTime(),
-                List.of(BookingStatus.PENDING, BookingStatus.APPROVED)
-        );
+        RecurrenceType recurrenceType = request.getRecurrenceType() == null
+                ? RecurrenceType.NONE
+                : request.getRecurrenceType();
 
-        if (!conflicts.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "This facility already has a booking request or approved booking in the selected time range."
-            );
+        int totalOccurrences = resolveTotalOccurrences(recurrenceType, request.getRepeatCount());
+        String recurrenceGroupId = totalOccurrences > 1 ? UUID.randomUUID().toString() : null;
+
+        List<Booking> createdBookings = new ArrayList<>();
+        List<SkippedOccurrenceDto> skippedOccurrences = new ArrayList<>();
+
+        for (int i = 0; i < totalOccurrences; i++) {
+            LocalDate occurrenceDate = calculateOccurrenceDate(request.getBookingDate(), recurrenceType, i);
+
+            try {
+                validateBookingDate(occurrenceDate);
+
+                List<Booking> conflicts = bookingRepository.findConflictingBookings(
+                        facility.getId(),
+                        occurrenceDate,
+                        request.getStartTime(),
+                        request.getEndTime(),
+                        List.of(BookingStatus.PENDING, BookingStatus.APPROVED)
+                );
+
+                if (!conflicts.isEmpty()) {
+                    skippedOccurrences.add(new SkippedOccurrenceDto(
+                            occurrenceDate,
+                            request.getStartTime(),
+                            request.getEndTime(),
+                            "Time conflict exists for this occurrence."
+                    ));
+                    continue;
+                }
+
+                Booking booking = new Booking();
+                booking.setFacility(facility);
+                booking.setUserName(request.getUserName().trim());
+                booking.setUserEmail(request.getUserEmail().trim().toLowerCase(Locale.ROOT));
+                booking.setBookingDate(occurrenceDate);
+                booking.setStartTime(request.getStartTime());
+                booking.setEndTime(request.getEndTime());
+                booking.setPurpose(request.getPurpose().trim());
+                booking.setExpectedAttendees(request.getExpectedAttendees());
+                booking.setStatus(BookingStatus.PENDING);
+                booking.setAdminReason(null);
+
+                if (totalOccurrences > 1) {
+                    booking.setRecurrenceType(recurrenceType);
+                    booking.setRecurrenceGroupId(recurrenceGroupId);
+                    booking.setOccurrenceNumber(i + 1);
+                    booking.setTotalOccurrences(totalOccurrences);
+                } else {
+                    booking.setRecurrenceType(RecurrenceType.NONE);
+                    booking.setRecurrenceGroupId(null);
+                    booking.setOccurrenceNumber(1);
+                    booking.setTotalOccurrences(1);
+                }
+
+                createdBookings.add(bookingRepository.save(booking));
+
+            } catch (ResponseStatusException ex) {
+                skippedOccurrences.add(new SkippedOccurrenceDto(
+                        occurrenceDate,
+                        request.getStartTime(),
+                        request.getEndTime(),
+                        ex.getReason()
+                ));
+            }
         }
 
-        Booking booking = new Booking();
-        booking.setFacility(facility);
-        booking.setUserName(request.getUserName().trim());
-        booking.setUserEmail(request.getUserEmail().trim().toLowerCase(Locale.ROOT));
-        booking.setBookingDate(request.getBookingDate());
-        booking.setStartTime(request.getStartTime());
-        booking.setEndTime(request.getEndTime());
-        booking.setPurpose(request.getPurpose().trim());
-        booking.setExpectedAttendees(request.getExpectedAttendees());
-        booking.setStatus(BookingStatus.PENDING);
-        booking.setAdminReason(null);
+        int createdCount = createdBookings.size();
+        int skippedCount = skippedOccurrences.size();
 
-        return bookingRepository.save(booking);
+        String message;
+        if (totalOccurrences == 1) {
+            message = createdCount == 1
+                    ? "Booking request submitted successfully."
+                    : "Booking request could not be created.";
+        } else {
+            message = "Recurring booking processed. " + createdCount + " created, " + skippedCount + " skipped.";
+        }
+
+        return new RecurringBookingResponse(
+                message,
+                totalOccurrences,
+                createdCount,
+                skippedCount,
+                createdBookings,
+                skippedOccurrences
+        );
     }
 
     public List<Booking> getAllBookings(String status, Long facilityId, LocalDate bookingDate) {
@@ -223,6 +288,40 @@ public class BookingService {
                 bookedSlots,
                 availableSlots
         );
+    }
+
+    private int resolveTotalOccurrences(RecurrenceType recurrenceType, Integer repeatCount) {
+        if (recurrenceType == RecurrenceType.NONE) {
+            return 1;
+        }
+
+        if (repeatCount == null || repeatCount < 2) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Repeat count must be at least 2 for recurring bookings."
+            );
+        }
+
+        if (repeatCount > 12) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Repeat count cannot exceed 12."
+            );
+        }
+
+        return repeatCount;
+    }
+
+    private LocalDate calculateOccurrenceDate(LocalDate baseDate, RecurrenceType recurrenceType, int index) {
+        if (recurrenceType == RecurrenceType.WEEKLY) {
+            return baseDate.plusWeeks(index);
+        }
+
+        if (recurrenceType == RecurrenceType.MONTHLY) {
+            return baseDate.plusMonths(index);
+        }
+
+        return baseDate;
     }
 
     private void validateFacilityForBooking(Facility facility, Integer expectedAttendees) {

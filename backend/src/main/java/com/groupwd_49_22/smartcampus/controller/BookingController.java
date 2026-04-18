@@ -3,6 +3,7 @@ package com.groupwd_49_22.smartcampus.controller;
 import com.groupwd_49_22.smartcampus.dto.BookingAvailabilityResponse;
 import com.groupwd_49_22.smartcampus.dto.BookingRequest;
 import com.groupwd_49_22.smartcampus.dto.BookingReviewRequest;
+import com.groupwd_49_22.smartcampus.dto.RecurringBookingResponse;
 import com.groupwd_49_22.smartcampus.model.Booking;
 import com.groupwd_49_22.smartcampus.service.BookingService;
 import jakarta.validation.Valid;
@@ -26,9 +27,14 @@ public class BookingController {
     }
 
     @PostMapping
-    public ResponseEntity<Booking> createBooking(@Valid @RequestBody BookingRequest request) {
-        Booking savedBooking = bookingService.createBooking(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedBooking);
+    public ResponseEntity<RecurringBookingResponse> createBooking(@Valid @RequestBody BookingRequest request) {
+        RecurringBookingResponse response = bookingService.createBooking(request);
+
+        HttpStatus status = response.getCreatedCount() == 0
+                ? HttpStatus.CONFLICT
+                : HttpStatus.CREATED;
+
+        return ResponseEntity.status(status).body(response);
     }
 
     @GetMapping

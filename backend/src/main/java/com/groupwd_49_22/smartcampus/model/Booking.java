@@ -50,6 +50,19 @@ public class Booking {
     @Column(name = "admin_reason", length = 255)
     private String adminReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recurrence_type", length = 20)
+    private RecurrenceType recurrenceType = RecurrenceType.NONE;
+
+    @Column(name = "recurrence_group_id", length = 100)
+    private String recurrenceGroupId;
+
+    @Column(name = "occurrence_number")
+    private Integer occurrenceNumber = 1;
+
+    @Column(name = "total_occurrences")
+    private Integer totalOccurrences = 1;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -64,7 +77,10 @@ public class Booking {
     public Booking(Long id, Facility facility, String userName, String userEmail,
                    LocalDate bookingDate, LocalTime startTime, LocalTime endTime,
                    String purpose, Integer expectedAttendees, BookingStatus status,
-                   String adminReason, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                   String adminReason, RecurrenceType recurrenceType,
+                   String recurrenceGroupId, Integer occurrenceNumber,
+                   Integer totalOccurrences, LocalDateTime createdAt,
+                   LocalDateTime updatedAt) {
         this.id = id;
         this.facility = facility;
         this.userName = userName;
@@ -76,6 +92,10 @@ public class Booking {
         this.expectedAttendees = expectedAttendees;
         this.status = status;
         this.adminReason = adminReason;
+        this.recurrenceType = recurrenceType;
+        this.recurrenceGroupId = recurrenceGroupId;
+        this.occurrenceNumber = occurrenceNumber;
+        this.totalOccurrences = totalOccurrences;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -122,6 +142,22 @@ public class Booking {
 
     public String getAdminReason() {
         return adminReason;
+    }
+
+    public RecurrenceType getRecurrenceType() {
+        return recurrenceType;
+    }
+
+    public String getRecurrenceGroupId() {
+        return recurrenceGroupId;
+    }
+
+    public Integer getOccurrenceNumber() {
+        return occurrenceNumber;
+    }
+
+    public Integer getTotalOccurrences() {
+        return totalOccurrences;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -174,6 +210,22 @@ public class Booking {
 
     public void setAdminReason(String adminReason) {
         this.adminReason = adminReason;
+    }
+
+    public void setRecurrenceType(RecurrenceType recurrenceType) {
+        this.recurrenceType = recurrenceType;
+    }
+
+    public void setRecurrenceGroupId(String recurrenceGroupId) {
+        this.recurrenceGroupId = recurrenceGroupId;
+    }
+
+    public void setOccurrenceNumber(Integer occurrenceNumber) {
+        this.occurrenceNumber = occurrenceNumber;
+    }
+
+    public void setTotalOccurrences(Integer totalOccurrences) {
+        this.totalOccurrences = totalOccurrences;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

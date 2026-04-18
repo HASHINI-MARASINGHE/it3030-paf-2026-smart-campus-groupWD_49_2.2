@@ -16,6 +16,7 @@ function BookingsPage() {
   const [facilityFilter, setFacilityFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [repeatFilter, setRepeatFilter] = useState("ALL");
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -103,12 +104,27 @@ function BookingsPage() {
     loadBookings();
   }, [statusFilter, facilityFilter, dateFilter]);
 
+  const isRepeatBooking = (booking) => {
+    return (
+      String(booking?.recurrenceType || "NONE").toUpperCase() !== "NONE" &&
+      Number(booking?.totalOccurrences || 1) > 1
+    );
+  };
+
+  const getRepeatText = (booking) => {
+    const type = String(booking?.recurrenceType || "NONE").toUpperCase();
+
+    if (type === "NONE" || Number(booking?.totalOccurrences || 1) <= 1) {
+      return "Single booking";
+    }
+
+    return `${type === "WEEKLY" ? "Weekly repeat" : "Monthly repeat"} • Booking ${
+      booking.occurrenceNumber || 1
+    } of ${booking.totalOccurrences || 1}`;
+  };
+
   const filteredBookings = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
-
-    if (!keyword) {
-      return bookings;
-    }
 
     return bookings.filter((booking) => {
       const facilityName = String(booking.facility?.name || "").toLowerCase();
@@ -119,17 +135,26 @@ function BookingsPage() {
       const purpose = String(booking.purpose || "").toLowerCase();
       const status = String(booking.status || "").toLowerCase();
 
-      return (
+      const matchesSearch =
+        !keyword ||
         facilityName.includes(keyword) ||
         location.includes(keyword) ||
         type.includes(keyword) ||
         userName.includes(keyword) ||
         userEmail.includes(keyword) ||
         purpose.includes(keyword) ||
-        status.includes(keyword)
-      );
+        status.includes(keyword);
+
+      const isRepeat = isRepeatBooking(booking);
+
+      const matchesRepeat =
+        repeatFilter === "ALL" ||
+        (repeatFilter === "REPEAT" && isRepeat) ||
+        (repeatFilter === "SINGLE" && !isRepeat);
+
+      return matchesSearch && matchesRepeat;
     });
-  }, [bookings, searchText]);
+  }, [bookings, searchText, repeatFilter]);
 
   const stats = useMemo(() => {
     return {
@@ -143,9 +168,7 @@ function BookingsPage() {
       rejected: bookings.filter(
         (b) => String(b.status).toUpperCase() === "REJECTED"
       ).length,
-      cancelled: bookings.filter(
-        (b) => String(b.status).toUpperCase() === "CANCELLED"
-      ).length,
+      repeat: bookings.filter((b) => isRepeatBooking(b)).length,
     };
   }, [bookings]);
 
@@ -228,6 +251,7 @@ function BookingsPage() {
     setFacilityFilter("");
     setDateFilter("");
     setSearchText("");
+    setRepeatFilter("ALL");
   };
 
   const getStatusStyle = (status) => {
@@ -242,7 +266,7 @@ function BookingsPage() {
     }
 
     if (value === "CANCELLED") {
-      return { backgroundColor: "#e5e7eb", color: "#374151" };
+      return { backgroundColor: "#e2e8f0", color: "#334155" };
     }
 
     return { backgroundColor: "#fef3c7", color: "#92400e" };
@@ -252,36 +276,35 @@ function BookingsPage() {
     <div>
       <Toast message={message} type={messageType} onClose={clearMessage} />
 
-      <div style={styles.headerRow}>
-        <div>
-          <h2 style={styles.heading}>Booking Management</h2>
-          <p style={styles.subText}>
-            Review pending booking requests, filter records, and manage approved
-            bookings.
-          </p>
-        </div>
+      <div style={styles.headerCard}>
+        <div style={styles.headerTag}>Smart Campus Operations Hub</div>
+        <h2 style={styles.heading}>Admin Booking Management</h2>
+        <p style={styles.subText}>
+          Review requests, manage repeat bookings, and control the full booking
+          process.
+        </p>
       </div>
 
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
-          <div style={styles.statNumber}>{stats.total}</div>
-          <div style={styles.statLabel}>Total Bookings</div>
+          <span style={styles.statLabel}>Total Bookings</span>
+          <span style={styles.statNumber}>{stats.total}</span>
         </div>
-        <div style={{ ...styles.statCard, borderLeft: "5px solid #f59e0b" }}>
-          <div style={styles.statNumber}>{stats.pending}</div>
-          <div style={styles.statLabel}>Pending</div>
+        <div style={{ ...styles.statCard, borderTop: "4px solid #f4b400" }}>
+          <span style={styles.statLabel}>Pending</span>
+          <span style={styles.statNumber}>{stats.pending}</span>
         </div>
-        <div style={{ ...styles.statCard, borderLeft: "5px solid #16a34a" }}>
-          <div style={styles.statNumber}>{stats.approved}</div>
-          <div style={styles.statLabel}>Approved</div>
+        <div style={{ ...styles.statCard, borderTop: "4px solid #16a34a" }}>
+          <span style={styles.statLabel}>Approved</span>
+          <span style={styles.statNumber}>{stats.approved}</span>
         </div>
-        <div style={{ ...styles.statCard, borderLeft: "5px solid #dc2626" }}>
-          <div style={styles.statNumber}>{stats.rejected}</div>
-          <div style={styles.statLabel}>Rejected</div>
+        <div style={{ ...styles.statCard, borderTop: "4px solid #dc2626" }}>
+          <span style={styles.statLabel}>Rejected</span>
+          <span style={styles.statNumber}>{stats.rejected}</span>
         </div>
-        <div style={{ ...styles.statCard, borderLeft: "5px solid #64748b" }}>
-          <div style={styles.statNumber}>{stats.cancelled}</div>
-          <div style={styles.statLabel}>Cancelled</div>
+        <div style={{ ...styles.statCard, borderTop: "4px solid #1e3a8a" }}>
+          <span style={styles.statLabel}>Repeat Bookings</span>
+          <span style={styles.statNumber}>{stats.repeat}</span>
         </div>
       </div>
 
@@ -319,6 +342,16 @@ function BookingsPage() {
           ))}
         </select>
 
+        <select
+          value={repeatFilter}
+          onChange={(e) => setRepeatFilter(e.target.value)}
+          style={styles.select}
+        >
+          <option value="ALL">All Bookings</option>
+          <option value="REPEAT">Repeat Bookings</option>
+          <option value="SINGLE">Single Bookings</option>
+        </select>
+
         <input
           type="date"
           value={dateFilter}
@@ -336,15 +369,13 @@ function BookingsPage() {
       </div>
 
       {loading ? (
-        <div style={styles.loaderWrapper}>
-          <p style={styles.loadingText}>Loading bookings...</p>
-        </div>
+        <div style={styles.placeholderBox}>Loading bookings...</div>
       ) : filteredBookings.length === 0 ? (
         <div style={styles.emptyBox}>
           <div style={styles.emptyIcon}>📅</div>
           <h3 style={styles.emptyTitle}>No bookings found</h3>
           <p style={styles.emptyText}>
-            Try adjusting the filters to see more results.
+            Try changing the filters to view more results.
           </p>
         </div>
       ) : (
@@ -352,9 +383,15 @@ function BookingsPage() {
           {filteredBookings.map((booking) => (
             <div key={booking.id} style={styles.card}>
               <div style={styles.cardTop}>
-                <h3 style={styles.cardTitle}>
-                  {booking.facility?.name || "Facility"}
-                </h3>
+                <div>
+                  <h3 style={styles.cardTitle}>
+                    {booking.facility?.name || "Facility"}
+                  </h3>
+                  <p style={styles.cardSubTitle}>
+                    {booking.facility?.location || "N/A"}
+                  </p>
+                </div>
+
                 <span
                   style={{
                     ...styles.badge,
@@ -365,25 +402,48 @@ function BookingsPage() {
                 </span>
               </div>
 
-              <div style={styles.infoRow}>
-                <strong>Requester:</strong> {booking.userName}
+              <div
+                style={
+                  isRepeatBooking(booking)
+                    ? styles.repeatTag
+                    : styles.singleTag
+                }
+              >
+                {getRepeatText(booking)}
               </div>
-              <div style={styles.infoRow}>
-                <strong>Email:</strong> {booking.userEmail}
+
+              <div style={styles.infoGrid}>
+                <div style={styles.infoCard}>
+                  <span style={styles.infoLabel}>Requester</span>
+                  <strong>{booking.userName}</strong>
+                </div>
+                <div style={styles.infoCard}>
+                  <span style={styles.infoLabel}>Email</span>
+                  <strong>{booking.userEmail}</strong>
+                </div>
+                <div style={styles.infoCard}>
+                  <span style={styles.infoLabel}>Date</span>
+                  <strong>{booking.bookingDate}</strong>
+                </div>
+                <div style={styles.infoCard}>
+                  <span style={styles.infoLabel}>Time</span>
+                  <strong>
+                    {booking.startTime} - {booking.endTime}
+                  </strong>
+                </div>
+                <div style={styles.infoCard}>
+                  <span style={styles.infoLabel}>Type</span>
+                  <strong>{booking.facility?.type || "N/A"}</strong>
+                </div>
+                <div style={styles.infoCard}>
+                  <span style={styles.infoLabel}>Attendees</span>
+                  <strong>{booking.expectedAttendees}</strong>
+                </div>
               </div>
-              <div style={styles.infoRow}>
-                <strong>Location:</strong>{" "}
-                {booking.facility?.location || "N/A"}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>Date:</strong> {booking.bookingDate}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>Time:</strong> {booking.startTime} - {booking.endTime}
-              </div>
-              <div style={styles.infoRow}>
-                <strong>Expected Attendees:</strong>{" "}
-                {booking.expectedAttendees}
+
+              <div style={styles.purposeBox}>
+                <span style={styles.infoLabel}>Purpose</span>
+                <p style={styles.purposeText}>{booking.purpose}</p>
               </div>
 
               {booking.adminReason && (
@@ -449,6 +509,16 @@ function BookingsPage() {
               request for <strong>{selectedBooking.facility?.name}</strong>.
             </p>
 
+            <div
+              style={
+                isRepeatBooking(selectedBooking)
+                  ? styles.repeatModalTag
+                  : styles.singleModalTag
+              }
+            >
+              {getRepeatText(selectedBooking)}
+            </div>
+
             <label style={styles.label}>Reason / Note</label>
             <textarea
               value={reviewReason}
@@ -491,6 +561,16 @@ function BookingsPage() {
           <div style={styles.detailsModalBox}>
             <h3 style={styles.modalTitle}>Booking Details</h3>
 
+            <div
+              style={
+                isRepeatBooking(detailsBooking)
+                  ? styles.repeatModalTag
+                  : styles.singleModalTag
+              }
+            >
+              {getRepeatText(detailsBooking)}
+            </div>
+
             <div style={styles.detailsGrid}>
               <div style={styles.detailItem}>
                 <strong>Booking ID:</strong> {detailsBooking.id}
@@ -513,7 +593,8 @@ function BookingsPage() {
                 {detailsBooking.facility?.location || "N/A"}
               </div>
               <div style={styles.detailItem}>
-                <strong>Type:</strong> {detailsBooking.facility?.type || "N/A"}
+                <strong>Type:</strong>{" "}
+                {detailsBooking.facility?.type || "N/A"}
               </div>
               <div style={styles.detailItem}>
                 <strong>Capacity:</strong>{" "}
@@ -561,204 +642,277 @@ function BookingsPage() {
 }
 
 const styles = {
-  headerRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: "20px",
-    gap: "20px",
-    flexWrap: "wrap",
+  headerCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "22px",
+    padding: "24px 26px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
+    marginBottom: "24px",
+  },
+  headerTag: {
+    display: "inline-block",
+    backgroundColor: "#f8fafc",
+    color: "#1e3a8a",
+    border: "1px solid #dbeafe",
+    padding: "7px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "700",
+    marginBottom: "12px",
   },
   heading: {
-    color: "#1f2f6b",
-    marginBottom: "6px",
+    color: "#1e293b",
+    marginBottom: "8px",
   },
   subText: {
-    color: "#555",
-    lineHeight: "1.6",
+    color: "#64748b",
+    lineHeight: "1.7",
+    margin: 0,
   },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
     gap: "16px",
     marginBottom: "22px",
   },
   statCard: {
-    backgroundColor: "#fff",
-    padding: "18px 22px",
-    borderRadius: "12px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-    borderLeft: "5px solid #1f2f6b",
-  },
-  statNumber: {
-    fontSize: "30px",
-    color: "#1f2f6b",
-    fontWeight: "bold",
-    marginBottom: "6px",
+    backgroundColor: "#ffffff",
+    padding: "18px 20px",
+    borderRadius: "18px",
+    border: "1px solid #e2e8f0",
+    borderTop: "4px solid #64748b",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
   },
   statLabel: {
-    color: "#555",
-    fontWeight: "600",
+    color: "#64748b",
+    fontWeight: "700",
+    fontSize: "13px",
+  },
+  statNumber: {
+    color: "#1e3a8a",
+    fontWeight: "800",
+    fontSize: "28px",
   },
   filterBar: {
     display: "flex",
     gap: "12px",
     marginBottom: "24px",
     flexWrap: "wrap",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     padding: "16px",
-    borderRadius: "12px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    borderRadius: "18px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
   },
   searchInput: {
     flex: 1,
     minWidth: "240px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
+    padding: "13px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
     outline: "none",
+    backgroundColor: "#ffffff",
   },
   input: {
     minWidth: "180px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
+    padding: "13px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
     outline: "none",
+    backgroundColor: "#ffffff",
   },
   select: {
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
+    padding: "13px 14px",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
     minWidth: "190px",
     outline: "none",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
   },
   resetButton: {
-    backgroundColor: "#37424a",
+    backgroundColor: "#334155",
     color: "#fff",
     border: "none",
-    padding: "12px 18px",
-    borderRadius: "8px",
+    padding: "13px 18px",
+    borderRadius: "14px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
-  loaderWrapper: {
+  placeholderBox: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
-    padding: "50px 20px",
-    borderRadius: "14px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-  },
-  loadingText: {
-    color: "#37424a",
-    fontWeight: "bold",
+    backgroundColor: "#ffffff",
+    padding: "48px 20px",
+    borderRadius: "18px",
+    border: "1px dashed #cbd5e1",
+    color: "#64748b",
   },
   emptyBox: {
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     padding: "40px 30px",
-    borderRadius: "14px",
+    borderRadius: "18px",
     textAlign: "center",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    border: "1px dashed #cbd5e1",
   },
   emptyIcon: {
     fontSize: "42px",
     marginBottom: "10px",
   },
   emptyTitle: {
-    color: "#1f2f6b",
+    color: "#1e293b",
     marginBottom: "8px",
   },
   emptyText: {
-    color: "#555",
+    color: "#64748b",
+    margin: 0,
   },
   cardGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: "20px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+    gap: "18px",
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: "14px",
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
     padding: "20px",
-    boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-    borderLeft: "5px solid #f4b400",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
   },
   cardTop: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "16px",
+    alignItems: "flex-start",
+    gap: "12px",
+    marginBottom: "14px",
     flexWrap: "wrap",
   },
   cardTitle: {
-    color: "#1f2f6b",
-    fontSize: "24px",
+    color: "#1e293b",
+    fontSize: "22px",
     margin: 0,
   },
+  cardSubTitle: {
+    color: "#64748b",
+    margin: "5px 0 0",
+    fontSize: "14px",
+  },
   badge: {
-    padding: "6px 12px",
+    padding: "7px 12px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
-  infoRow: {
-    marginBottom: "10px",
-    color: "#333",
-    fontSize: "15px",
-    lineHeight: "1.6",
+  repeatTag: {
+    display: "inline-block",
+    marginBottom: "14px",
+    backgroundColor: "#eff6ff",
+    color: "#1e3a8a",
+    border: "1px solid #bfdbfe",
+    borderRadius: "999px",
+    padding: "7px 12px",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+  singleTag: {
+    display: "inline-block",
+    marginBottom: "14px",
+    backgroundColor: "#f8fafc",
+    color: "#475569",
+    border: "1px solid #e2e8f0",
+    borderRadius: "999px",
+    padding: "7px 12px",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+  infoGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "12px",
+    marginBottom: "14px",
+  },
+  infoCard: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  infoLabel: {
+    display: "block",
+    fontSize: "12px",
+    color: "#64748b",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  },
+  purposeBox: {
+    backgroundColor: "#fffdf5",
+    border: "1px solid #fef3c7",
+    borderRadius: "14px",
+    padding: "14px",
+    marginBottom: "14px",
+  },
+  purposeText: {
+    margin: "8px 0 0",
+    color: "#475569",
+    lineHeight: "1.7",
   },
   reasonBox: {
-    marginTop: "10px",
     backgroundColor: "#f8fafc",
-    borderRadius: "10px",
-    padding: "12px 14px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "13px 14px",
     color: "#334155",
-    lineHeight: "1.6",
+    lineHeight: "1.7",
   },
   actionRow: {
     display: "flex",
     gap: "10px",
-    marginTop: "18px",
+    marginTop: "16px",
     flexWrap: "wrap",
   },
   viewButton: {
-    backgroundColor: "#1f2f6b",
+    backgroundColor: "#1e3a8a",
     color: "#fff",
     border: "none",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    padding: "11px 15px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   approveButton: {
     backgroundColor: "#16a34a",
     color: "#fff",
     border: "none",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    padding: "11px 15px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   rejectButton: {
     backgroundColor: "#dc2626",
     color: "#fff",
     border: "none",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    padding: "11px 15px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   cancelButton: {
-    backgroundColor: "#475569",
+    backgroundColor: "#334155",
     color: "#fff",
     border: "none",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    padding: "11px 15px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   modalOverlay: {
     position: "fixed",
@@ -773,39 +927,61 @@ const styles = {
   modalBox: {
     backgroundColor: "#fff",
     width: "90%",
-    maxWidth: "480px",
+    maxWidth: "500px",
     padding: "28px",
-    borderRadius: "14px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    borderRadius: "18px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
   },
   detailsModalBox: {
     backgroundColor: "#fff",
     width: "90%",
-    maxWidth: "720px",
+    maxWidth: "760px",
     padding: "28px",
-    borderRadius: "14px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    borderRadius: "18px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
   },
   modalTitle: {
-    color: "#1f2f6b",
+    color: "#1e293b",
     marginBottom: "12px",
   },
   modalText: {
-    color: "#444",
-    marginBottom: "18px",
-    lineHeight: "1.6",
+    color: "#475569",
+    marginBottom: "16px",
+    lineHeight: "1.7",
+  },
+  repeatModalTag: {
+    display: "inline-block",
+    marginBottom: "16px",
+    backgroundColor: "#eff6ff",
+    color: "#1e3a8a",
+    border: "1px solid #bfdbfe",
+    borderRadius: "999px",
+    padding: "7px 12px",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+  singleModalTag: {
+    display: "inline-block",
+    marginBottom: "16px",
+    backgroundColor: "#f8fafc",
+    color: "#475569",
+    border: "1px solid #e2e8f0",
+    borderRadius: "999px",
+    padding: "7px 12px",
+    fontSize: "12px",
+    fontWeight: "700",
   },
   label: {
     display: "block",
-    color: "#37424a",
-    fontWeight: "bold",
+    color: "#334155",
+    fontWeight: "700",
     marginBottom: "8px",
   },
   textarea: {
     width: "100%",
     padding: "12px 14px",
-    borderRadius: "10px",
-    border: "1px solid #d1d5db",
+    borderRadius: "14px",
+    border: "1px solid #cbd5e1",
     outline: "none",
     fontSize: "15px",
     resize: "vertical",
@@ -820,60 +996,63 @@ const styles = {
     marginTop: "18px",
   },
   modalCancelButton: {
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#e2e8f0",
     color: "#111827",
     border: "none",
     padding: "10px 16px",
-    borderRadius: "8px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   modalApproveButton: {
     backgroundColor: "#16a34a",
     color: "#fff",
     border: "none",
     padding: "10px 16px",
-    borderRadius: "8px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   modalRejectButton: {
     backgroundColor: "#dc2626",
     color: "#fff",
     border: "none",
     padding: "10px 16px",
-    borderRadius: "8px",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   detailsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "14px",
-    marginTop: "12px",
+    gap: "12px",
+    marginTop: "10px",
   },
   detailItem: {
     backgroundColor: "#f8fafc",
-    borderRadius: "10px",
+    borderRadius: "14px",
     padding: "12px 14px",
     color: "#334155",
     lineHeight: "1.6",
+    border: "1px solid #e2e8f0",
   },
   detailsPurposeBox: {
     marginTop: "18px",
-    backgroundColor: "#f8fafc",
-    borderRadius: "10px",
+    backgroundColor: "#fffdf5",
+    borderRadius: "14px",
     padding: "14px 16px",
+    border: "1px solid #fef3c7",
   },
   detailsReasonBox: {
     marginTop: "14px",
-    backgroundColor: "#fff7ed",
-    borderRadius: "10px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "14px",
     padding: "14px 16px",
+    border: "1px solid #e2e8f0",
   },
   detailsParagraph: {
     marginTop: "8px",
-    color: "#334155",
+    color: "#475569",
     lineHeight: "1.7",
   },
 };
