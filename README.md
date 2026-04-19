@@ -194,7 +194,7 @@ cd smart-campus-groupWD_46_2.2
 ```bash
 cd backend
 mvn clean install
-mvn spring-boot:run
+mvnw.cmd spring-boot:run
 ```
 
 Runs on: http://localhost:8080  
