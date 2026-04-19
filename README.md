@@ -193,7 +193,7 @@ cd smart-campus-groupWD_46_2.2
 ### 🔹 2. Backend Setup
 ```bash
 cd backend
-mvn clean install
+mvnw.cmd clean install
 mvnw.cmd spring-boot:run
 ```
 
