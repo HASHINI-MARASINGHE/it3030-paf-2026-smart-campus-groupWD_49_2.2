@@ -1,4 +1,4 @@
-# 🎓 Smart Campus Operations Hub
+#  Smart Campus Operations Hub
 
 Smart Campus Operations Hub is a modern smart campus management platform developed to improve how university resources, bookings, maintenance requests, and notifications are handled in one centralized system.
 
@@ -6,7 +6,7 @@ This project was developed for the **Programming Applications and Frameworks (IT
 
 ---
 
-## 📌 **Project Overview**
+##  **Project Overview**
 
 Smart Campus Operations Hub is a **full-stack web application** that helps universities manage day-to-day campus operations efficiently.
 
@@ -20,9 +20,9 @@ The system allows users to:
 
 ---
 
-## 🚀 **Main Features**
+## **Main Features**
 
-### 🏫 **Resource Management**
+### **Resource Management**
 - Add, update, delete resources  
 - Upload images  
 - Manage type, location, capacity, availability  
@@ -30,7 +30,7 @@ The system allows users to:
 
 ---
 
-### 📅 **Booking Management**
+### **Booking Management**
 - Request bookings  
 - Approve / reject bookings  
 - Prevent booking conflicts  
@@ -39,7 +39,7 @@ The system allows users to:
 
 ---
 
-### 🎫 **Ticket Management**
+### **Ticket Management**
 - Create maintenance tickets  
 - Assign tickets to staff  
 - Update ticket status  
@@ -47,7 +47,7 @@ The system allows users to:
 
 ---
 
-### 🔔 **Notification System**
+### **Notification System**
 - Real-time notifications  
 - Booking updates  
 - Ticket updates  
@@ -55,14 +55,14 @@ The system allows users to:
 
 ---
 
-### 🔐 **Authentication & Authorization**
+### **Authentication & Authorization**
 - Secure login (Google OAuth2)  
 - Role-based access control  
 - Protected routes  
 
 ---
 
-## 🧰 **Tech Stack**
+## **Tech Stack**
 
 ### 🔹 Backend
 - Java  
@@ -81,25 +81,25 @@ The system allows users to:
 
 ---
 
-## 👥 **User Roles**
+## **User Roles**
 
-### 👤 USER
+###  USER
 - Browse resources  
 - Create bookings  
 - Manage own tickets  
 
-### 🧑‍💼 ADMIN
+### ADMIN
 - Manage resources  
 - Manage bookings  
 - Manage users  
 
-### 🛠️ STAFF
+### STAFF
 - Handle assigned tickets  
 - Update ticket status  
 
 ---
 
-## 📦 **Project Modules**
+##  **Project Modules**
 
 1. **Facilities & Assets Management**  
 2. **Booking Management**  
@@ -109,7 +109,7 @@ The system allows users to:
 
 ---
 
-## 👨‍💻 **Team Members**
+## **Team Members**
 
 | Name | Registration No | Responsibility |
 |------|---------------|---------------|
@@ -120,7 +120,7 @@ The system allows users to:
 
 ---
 
-## 🏗️ **System Architecture**
+## **System Architecture**
 
 - **Frontend** → User Interface (React)  
 - **Backend** → REST APIs (Spring Boot)  
@@ -129,16 +129,16 @@ The system allows users to:
 
 ---
 
-## 🔗 **Sample API Endpoints**
+## **Sample API Endpoints**
 
-### 📌 Resources
+### Resources
 ```bash
 GET    /api/resources
 POST   /api/resources
 PUT    /api/resources/{id}
 DELETE /api/resources/{id}
 
-### 📌 Bookings
+### Bookings
 ```bash
 POST   /api/bookings/resource/{resourceId}
 GET    /api/bookings/my
@@ -149,7 +149,7 @@ PATCH  /api/bookings/{id}/approve
 PATCH  /api/bookings/{id}/reject
 DELETE /api/bookings/{id}
 
-### 📌 Tickets
+### Tickets
 ```bash
 POST   /api/tickets
 GET    /api/tickets/my
@@ -160,7 +160,7 @@ PATCH  /api/tickets/{id}/assign
 PATCH  /api/tickets/{id}/status
 DELETE /api/tickets/{id}
 ```
-### 📌 Authentication
+### Authentication
 ```bash
 GET    /api/auth/test
 GET    /api/auth/me
@@ -172,7 +172,7 @@ PUT    /api/admin/users/{id}
 DELETE /api/admin/users/{id}
 ```
 
-### 📌 Notifications
+### Notifications
 ```bash
 GET    /api/notifications
 PATCH  /api/notifications/{id}/read
@@ -182,11 +182,11 @@ PUT    /api/notifications/preferences
 ```
 ---
 
-## ⚙️ **Setup Instructions**
+##  **Setup Instructions**
 
 ### 🔹 1. Clone Repository
 ```bash
-git clone YOUR_REPO_LINK
+git clone https://github.com/HASHINI-MARASINGHE/it3030-paf-2026-smart-campus-groupWD_49_2.2.git
 cd smart-campus-groupWD_46_2.2
 ```
 
@@ -210,7 +210,7 @@ Runs on: http://localhost:5173
 
 ---
 
-## 🗄️ **Environment Configuration**
+## **Environment Configuration**
 
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/smartcampus
@@ -223,7 +223,7 @@ spring.jpa.show-sql=true
 
 ---
 
-## 🔄 **Git Workflow**
+##  **Git Workflow**
 
 - main → stable version  
 - develop → integration branch  
@@ -231,7 +231,7 @@ spring.jpa.show-sql=true
 
 ---
 
-## 🧪 **Testing**
+## **Testing**
 
 - API testing using Postman  
 - UI testing  
@@ -241,7 +241,7 @@ spring.jpa.show-sql=true
 
 ---
 
-## 🔐 **Authentication Flow**
+## **Authentication Flow**
 
 - User logs in  
 - Backend validates  
@@ -250,7 +250,7 @@ spring.jpa.show-sql=true
 
 ---
 
-## 🔔 **Notification Flow**
+## **Notification Flow**
 
 - Event occurs  
 - Notification created  
@@ -259,13 +259,13 @@ spring.jpa.show-sql=true
 
 ---
 
-## 🎓 **Academic Context**
+## **Academic Context**
 
 - Module: IT3030 – PAF  
 - Group: WD_46_2.2  
 - University: SLIIT  
 
 ---
-## 📜 **License**
+## **License**
 
 Academic purposes only
