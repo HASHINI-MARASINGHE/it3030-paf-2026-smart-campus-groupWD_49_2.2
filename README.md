@@ -186,7 +186,7 @@ PUT    /api/notifications/preferences
 
 ### 🔹 1. Clone Repository
 ```bash
-git clone https://github.com/HASHINI-MARASINGHE/it3030-paf-2026-smart-campus-groupWD_49_2.2.git
+git clone https://github.com/HASHINI-MARASINGHE/it3030-paf-2026-smart-campus-groupWD_46_2.2.git 
 cd smart-campus-groupWD_46_2.2
 ```
 
