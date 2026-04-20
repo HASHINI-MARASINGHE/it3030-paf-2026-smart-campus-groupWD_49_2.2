@@ -494,7 +494,7 @@ function BookingsPage() {
                   many bookings you need.
                 </p>
               </div>
-              <div style={styles.cardBadge}>Simple Form</div>
+              <div style={styles.cardBadge}>Booking Form</div>
             </div>
 
             {formError && <div style={styles.errorBox}>{formError}</div>}
