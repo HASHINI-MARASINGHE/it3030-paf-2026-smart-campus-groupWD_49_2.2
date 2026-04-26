@@ -1,5 +1,6 @@
 package com.groupwd_49_22.smartcampus.security;
 
+import com.groupwd_49_22.smartcampus.model.Role;
 import com.groupwd_49_22.smartcampus.model.User;
 import com.groupwd_49_22.smartcampus.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
-                user.getIsActive(),
+                Boolean.TRUE.equals(user.getIsActive()),
                 true,
                 true,
                 true,
@@ -36,7 +38,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private Collection<? extends GrantedAuthority> getAuthorities(User user) {
         return user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleName().name()))
+                .map(Role::getRoleName)
+                .map(Enum::name)
+                .map(roleName -> new SimpleGrantedAuthority("ROLE_" + roleName))
                 .toList();
     }
 }

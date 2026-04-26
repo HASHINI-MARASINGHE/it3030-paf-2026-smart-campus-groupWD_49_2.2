@@ -1,39 +1,38 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: ''
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    fullName: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
 
-  const handleChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
+  const handleChange = (event) => {
+    setFormData((previous) => ({
+      ...previous,
+      [event.target.name]: event.target.value,
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError("Password must be at least 6 characters");
       return;
     }
 
@@ -41,14 +40,14 @@ const RegisterPage = () => {
 
     try {
       await register(
-        formData.username,
-        formData.email,
+        formData.username.trim(),
+        formData.email.trim(),
         formData.password,
-        formData.fullName
+        formData.fullName.trim()
       );
-      navigate('/');
+      navigate("/facilities", { replace: true });
     } catch (err) {
-      setError(err.error || err.message || 'Registration failed');
+      setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -60,7 +59,7 @@ const RegisterPage = () => {
         <div style={styles.leftContent}>
           <h1 style={styles.brand}>SLIIT Smart Campus</h1>
           <p style={styles.text}>
-            Create an account to access facilities, book resources, and manage your campus activities.
+            Create your account to access facilities, bookings, and campus operations.
           </p>
           <Link to="/" style={styles.backLink}>
             ← Back to Home
@@ -72,7 +71,7 @@ const RegisterPage = () => {
         <form style={styles.form} onSubmit={handleSubmit}>
           <h2 style={styles.formTitle}>Register</h2>
 
-          {error && <div style={styles.errorMessage}>{error}</div>}
+          {error ? <div style={styles.errorMessage}>{error}</div> : null}
 
           <label style={styles.label}>Full Name</label>
           <input
@@ -114,7 +113,7 @@ const RegisterPage = () => {
           <input
             type="password"
             name="password"
-            placeholder="Enter password (min 6 characters)"
+            placeholder="Enter a password"
             value={formData.password}
             onChange={handleChange}
             style={styles.input}
@@ -135,11 +134,14 @@ const RegisterPage = () => {
           />
 
           <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Creating Account...' : 'Register'}
+            {loading ? "Creating Account..." : "Register"}
           </button>
 
           <p style={styles.footer}>
-            Already have an account? <Link to="/login" style={styles.link}>Login here</Link>
+            Already have an account?{" "}
+            <Link to="/login" style={styles.link}>
+              Login here
+            </Link>
           </p>
         </form>
       </div>
